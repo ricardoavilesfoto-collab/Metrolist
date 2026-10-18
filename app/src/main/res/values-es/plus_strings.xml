@@ -61,4 +61,7 @@
     <string name="plus_island_description">Píldora flotante arriba mientras suena música en segundo plano. Tócala para ver los controles y otra vez para abrir la app</string>
     <string name="plus_island_permission">Permite que Metrolist Plus se muestre sobre otras apps para ver la Dynamic Island</string>
     <string name="plus_island_open">Abrir Metrolist Plus</string>
+    <string name="plus_island_accessibility_label">Metrolist Plus Dynamic Island</string>
+    <string name="plus_island_accessibility_description">Permite que Metrolist Plus dibuje la Dynamic Island encima de la barra de estado, alrededor de la cámara. No lee la pantalla ni lo que escribes.</string>
+    <string name="plus_island_accessibility_needed">Toca para activar \"Metrolist Plus Dynamic Island\" en Accesibilidad y que la isla rodee la cámara</string>
 </resources>

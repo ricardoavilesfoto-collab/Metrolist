@@ -15,6 +15,13 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Dynamic Island alrededor de la cámara (servicio de accesibilidad)
+- Qué: la isla ahora se dibuja con un servicio de accesibilidad propio (`PlusIslandAccessibilityService`), en una ventana `TYPE_ACCESSIBILITY_OVERLAY`. Queda encima de la barra de estado, centrada y con el tamaño del hueco de la cámara (`DisplayCutout.boundingRectTop`), y recibe los toques: píldora → tarjeta con controles → app. Si el servicio está apagado pero hay permiso "Mostrar sobre otras apps", aparece debajo de la barra de estado. La animación ya no redimensiona la ventana en cada cuadro (`AnimatedContent` con `SizeTransform` en `snap`), y las barras del ecualizador son fluidas (`graphicsLayer`, sin recomponer). En Ajustes, el interruptor lleva a Accesibilidad si el servicio no está activo.
+- Por qué: con `TYPE_APPLICATION_OVERLAY` la píldora quedaba debajo de los íconos del sistema, no recibía toques (se los quedaba la barra de estado) y se veía a saltos. Ricardo eligió la versión "alrededor de la cámara", aunque requiere activar el servicio en Accesibilidad (y en Android 13+ "Permitir ajustes restringidos", porque el APK no viene de Play Store).
+- Archivos propios: `plus/island/IslandAccessibilityService.kt`, `plus/island/DynamicIsland.kt`, `res/xml/plus_island_accessibility.xml`, textos `plus_island_accessibility_*`.
+- Archivo del original modificado: `AndroidManifest.xml` (servicio `.plus.island.PlusIslandAccessibilityService`, marcado `Metrolist Plus`).
+- Notas para sincronizar: nada más del original cambia.
+
 ## 2026-10-18 — Integración automática del trabajo hecho desde la nube
 - Qué: `.github/workflows/metrolist-plus-integrar.yml` hace merge en `ricardo` de cada push a una rama `claude/**` y lanza `metrolist-plus.yml`, que compila y publica el APK. Si hay conflictos, o si la rama toca `.github/workflows/` (GITHUB_TOKEN no puede subir eso), falla sin tocar `ricardo`, y Claude en la PC lo integra a mano. Se eliminó `metrolist-plus-check.yml`, que compilaba una app de prueba aparte. La guía para la nube está en `CLAUDE.md`.
 - Por qué: Ricardo quiere una sola app que se actualice encima ("Actualizar"), sin apps de prueba ni volver a iniciar sesión, haga el cambio desde la PC o desde el celular.
