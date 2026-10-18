@@ -13,4 +13,6 @@
     <string name="plus_delete_folder_message">Delete \"%1$s\"? The playlists inside will go back to your library. No playlist is deleted.</string>
     <string name="plus_folder_empty">This folder is empty. Open a playlist menu and choose \"Move to folder\".</string>
     <string name="plus_create">Create</string>
+    <string name="plus_spotify_player">Spotify-style player</string>
+    <string name="plus_spotify_player_description">Big title, like button, thin progress bar and Spotify-like controls</string>
 </resources>

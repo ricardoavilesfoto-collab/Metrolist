@@ -164,6 +164,8 @@ import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.plus.player.PlusSpotifyControls
+import com.metrolist.music.plus.player.rememberPlusSpotifyPlayerEnabled
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
@@ -1841,6 +1843,73 @@ fun BottomSheetPlayer(
             }
         }
 
+        // Metrolist Plus: Spotify-style controls (toggle in Settings > Appearance > Player)
+        val plusSpotifyPlayer = rememberPlusSpotifyPlayerEnabled()
+        val activeControls: @Composable ColumnScope.(MediaMetadata) -> Unit =
+            if (!plusSpotifyPlayer) {
+                controlsContent
+            } else {
+                { metadata ->
+                    PlusSpotifyControls(
+                        mediaMetadata = metadata,
+                        position = sliderPosition ?: effectivePosition,
+                        duration = if (duration == C.TIME_UNSET) 0L else duration,
+                        isPlaying = effectiveIsPlaying,
+                        isEnded = playbackState == STATE_ENDED,
+                        isListenTogetherGuest = isListenTogetherGuest,
+                        sleepTimerActive = sleepTimerEnabled,
+                        contentColor = TextBackgroundColor,
+                        playButtonColor = textButtonColor,
+                        playIconColor = iconButtonColor,
+                        onSeekChange = { if (!isListenTogetherGuest) sliderPosition = it },
+                        onSeekFinished = {
+                            sliderPosition?.let {
+                                if (isCasting) {
+                                    castHandler?.seekTo(it)
+                                    lastManualSeekTime = System.currentTimeMillis()
+                                } else {
+                                    playerConnection.player.seekTo(it)
+                                }
+                                position = it
+                            }
+                            sliderPosition = null
+                        },
+                        onPlayPause = {
+                            if (isListenTogetherGuest) {
+                                playerConnection.toggleMute()
+                            } else if (isCasting) {
+                                if (castIsPlaying) castHandler?.pause() else castHandler?.play()
+                            } else if (playbackState == STATE_ENDED) {
+                                playerConnection.player.seekTo(0, 0)
+                                playerConnection.player.playWhenReady = true
+                            } else {
+                                playerConnection.togglePlayPause()
+                            }
+                        },
+                        onSleepTimerClick = {
+                            if (sleepTimerEnabled) {
+                                playerConnection.service.sleepTimer?.clear()
+                            } else {
+                                showSleepTimerDialog = true
+                            }
+                        },
+                        onOpenAlbum = {
+                            val albumId = metadata.album?.id
+                                ?: currentSong?.album?.id
+                                ?: currentSong?.song?.albumId
+                            if (albumId != null) {
+                                navController.navigate("album/$albumId")
+                                state.collapseSoft()
+                            }
+                        },
+                        onOpenArtist = { artistId ->
+                            navController.navigate("artist/$artistId")
+                            state.collapseSoft()
+                        },
+                    )
+                }
+            }
+
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
@@ -1906,7 +1975,7 @@ fun BottomSheetPlayer(
                         Spacer(Modifier.weight(1f))
 
                         mediaMetadata?.let {
-                            controlsContent(it)
+                            activeControls(it)
                         }
 
                         Spacer(Modifier.weight(1f))
@@ -1958,7 +2027,7 @@ fun BottomSheetPlayer(
                     }
 
                     mediaMetadata?.let {
-                        controlsContent(it)
+                        activeControls(it)
                     }
 
                     Spacer(Modifier.height(30.dp))

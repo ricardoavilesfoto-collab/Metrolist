@@ -15,6 +15,16 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Reproductor estilo Spotify
+- Qué: controles del reproductor como Spotify: título grande + artistas, botón "me gusta" (círculo verde ✓ / círculo +), barra de progreso delgada con tiempos, fila aleatorio · anterior · play (círculo) · siguiente · temporizador (verde con punto cuando están activos). Interruptor en Ajustes → Apariencia → Reproductor ("Reproductor estilo Spotify", encendido por defecto).
+- Por qué: Ricardo quiere la interfaz de reproducción de Spotify.
+- Archivos propios: `app/src/main/kotlin/com/metrolist/music/plus/player/SpotifyControls.kt`, `res/drawable/plus_check_circle.xml`, `plus_add_circle.xml`, `plus_timer.xml`, textos `plus_spotify_player*` en `plus_strings.xml`.
+- Archivos del original modificados (marcados con `// Metrolist Plus`):
+  - `ui/player/Player.kt`: bloque `activeControls` justo antes de `when (LocalConfiguration.current.orientation)`, y las dos llamadas `controlsContent(it)` cambiadas a `activeControls(it)` (horizontal y vertical). Reutiliza el estado del original: `sliderPosition`, `effectivePosition`, `duration`, casting (`castHandler`, `lastManualSeekTime`), `showSleepTimerDialog`, `sleepTimerEnabled`, colores `TextBackgroundColor`/`textButtonColor`/`iconButtonColor`.
+  - `ui/screens/settings/AppearanceSettings.kt`: `plusSpotifyPlayerSettingsItem()` como primer elemento del grupo "Reproductor".
+- No se tocan: portada (`Thumbnail.kt`, ya muestra "Reproduciendo desde…"), fondo y barra de la cola (`Queue.kt`).
+- Notas para sincronizar: si el original renombra alguna de esas variables de `Player.kt` o cambia cómo hace seek/play-pause, actualizar el bloque `activeControls` con la lógica nueva. Si agrega llamadas nuevas a `controlsContent(...)`, cambiarlas también a `activeControls(...)`.
+
 ## 2026-10-18 — Carpetas y playlists fijadas en la Biblioteca (estilo Spotify)
 - Qué: en la vista "Playlists" de la Biblioteca se pueden fijar playlists y carpetas arriba, crear carpetas, mover playlists a carpetas, renombrar y eliminar carpetas (eliminar no borra playlists). El botón "+" ofrece crear playlist o carpeta. El menú de cada playlist muestra arriba los botones Fijar / Mover a carpeta / Sacar de la carpeta.
 - Por qué: organizar ~136 playlists como en Spotify.
