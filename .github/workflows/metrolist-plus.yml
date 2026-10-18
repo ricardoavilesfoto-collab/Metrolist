@@ -58,7 +58,8 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
 
       - name: Sign APK
-        uses: ilharp/sign-android-release@v2.0.0
+        # Fijada a un commit exacto (v2.0.0): esta acción recibe la llave de firma.
+        uses: ilharp/sign-android-release@13dd52242698526f951aa8bb8696204f6fea702a
         with:
           releaseDir: app/build/outputs/apk/gms/release/
           signingKey: ${{ secrets.PLUS_KEYSTORE }}
@@ -78,6 +79,7 @@ jobs:
         with:
           name: MetrolistPlus
           path: out/MetrolistPlus.apk
+          retention-days: 7
 
       - name: Publish release
         env:
