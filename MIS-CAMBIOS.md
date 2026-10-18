@@ -15,6 +15,14 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Reproductor Plus sin barra inferior: tarjeta de letra deslizable, ⋮ arriba, temporizador y repetir junto al dispositivo
+- Qué: con el Reproductor Plus activo se oculta la barra de íconos de abajo (cola, temporizador, aleatorio, letra, repetir, ⋮) porque duplicaba los controles. En su lugar: tarjeta "Letra" asomada abajo que al deslizarla hacia arriba muestra la letra sincronizada (y hacia abajo vuelve al reproductor); ⋮ en la esquina superior derecha junto a "Reproduciendo desde…"; temporizador y repetir a la derecha de la línea del dispositivo de salida. La cola se abre con su botón de la fila de controles.
+- Archivos propios: `plus/player/LyricsSheet.kt` (`PlusLyricsSheet` con `BottomSheet` + `InlineLyricsView` del original, `PlusPlayerMenuButton` con `PlayerMenu`, `PlusLyricsPeekHeight`); `plus/player/SpotifyControls.kt` (fila dispositivo · temporizador · repetir; parámetros `sleepTimerActive`, `onSleepTimerClick`).
+- Archivos del original modificados (marcados con `// Metrolist Plus`):
+  - `ui/player/Player.kt`: `plusSpotifyPlayer` se lee arriba (junto a `queueSheetState`); con Plus, `queueSheetState` usa bounds 0 (barra oculta) y existe `plusLyricsSheetState`; el `bottomPadding` del contenido usa la altura de la tarjeta; `PlusLyricsSheet` se dibuja antes de `Queue` (solo vertical, no en pantalla completa); el `Thumbnail` vertical recibe `headerAction = PlusPlayerMenuButton(...)`; `activeControls` pasa los parámetros del temporizador.
+  - `ui/player/Thumbnail.kt`: parámetro opcional `headerAction` en `Thumbnail` → `ThumbnailHeader(action = ...)`, dibujado a la derecha (`Alignment.CenterEnd`).
+- Notas para sincronizar: si el original cambia la construcción de `queueSheetState`, el cálculo de `bottomPadding` o el encabezado de `Thumbnail`, conservar estas ramas para el modo Plus.
+
 ## 2026-10-18 — Cola estilo Spotify ("Siguiente en la cola") y deslizar para agregar a la cola
 - Qué: las canciones que agrega el usuario forman su propia cola, que suena antes del resto de la playlist. "Agregar a la cola" las pone al final de esa cola (ya no al final de toda la lista); "Reproducir a continuación" al inicio. Al poner otra playlist/álbum la cola se conserva. La pantalla de cola muestra secciones "Reproduciendo ahora", "Siguiente en la cola" (con "Borrar cola") y "Siguiente desde: <playlist>". Deslizar una canción a la derecha = agregar a la cola, a la izquierda = reproducir a continuación, activado por defecto.
 - Por qué: Ricardo está acostumbrado a la cola de Spotify.

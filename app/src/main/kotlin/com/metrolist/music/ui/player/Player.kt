@@ -164,6 +164,9 @@ import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.plus.player.PlusLyricsPeekHeight
+import com.metrolist.music.plus.player.PlusLyricsSheet
+import com.metrolist.music.plus.player.PlusPlayerMenuButton
 import com.metrolist.music.plus.player.PlusSpotifyControls
 import com.metrolist.music.plus.player.rememberPlusSpotifyPlayerEnabled
 import com.metrolist.music.ui.component.BottomSheet
@@ -807,11 +810,24 @@ fun BottomSheetPlayer(
 
     val dismissedBound = QueuePeekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
+    // Metrolist Plus: the Plus player hides the bottom icon bar (the queue opens from its own button)
+    // and shows a swipe-up lyrics card in its place.
+    val plusSpotifyPlayer = rememberPlusSpotifyPlayerEnabled()
+    val queuePeekBound = if (plusSpotifyPlayer) 0.dp else dismissedBound
+    val plusLyricsPeekBound = PlusLyricsPeekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val plusLyricsSheetState =
+        rememberBottomSheetState(
+            dismissedBound = plusLyricsPeekBound,
+            expandedBound = state.expandedBound,
+            collapsedBound = plusLyricsPeekBound + 1.dp,
+            initialAnchor = 1,
+        )
+
     val queueSheetState =
         rememberBottomSheetState(
-            dismissedBound = dismissedBound,
+            dismissedBound = queuePeekBound,
             expandedBound = state.expandedBound,
-            collapsedBound = dismissedBound + 1.dp,
+            collapsedBound = queuePeekBound + 1.dp,
             initialAnchor = 1,
         )
 
@@ -1844,7 +1860,6 @@ fun BottomSheetPlayer(
         }
 
         // Metrolist Plus: hybrid Metrolist + Spotify controls (toggle in Settings > Appearance > Player)
-        val plusSpotifyPlayer = rememberPlusSpotifyPlayerEnabled()
         val activeControls: @Composable ColumnScope.(MediaMetadata) -> Unit =
             if (!plusSpotifyPlayer) {
                 controlsContent
@@ -1889,6 +1904,14 @@ fun BottomSheetPlayer(
                             }
                         },
                         onOpenQueue = { queueSheetState.expandSoft() },
+                        sleepTimerActive = sleepTimerEnabled,
+                        onSleepTimerClick = {
+                            if (sleepTimerEnabled) {
+                                playerConnection.service.sleepTimer?.clear()
+                            } else {
+                                showSleepTimerDialog = true
+                            }
+                        },
                         onOpenAlbum = {
                             val albumId = metadata.album?.id
                                 ?: currentSong?.album?.id
@@ -1981,7 +2004,11 @@ fun BottomSheetPlayer(
 
             else -> {
                 val bottomPadding by animateDpAsState(
-                    targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
+                    targetValue = when {
+                        isFullScreen -> 0.dp
+                        plusSpotifyPlayer -> plusLyricsSheetState.collapsedBound // Metrolist Plus
+                        else -> queueSheetState.collapsedBound
+                    },
                     label = "bottomPadding",
                 )
                 Column(
@@ -2017,6 +2044,12 @@ fun BottomSheetPlayer(
                                     modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    // Metrolist Plus: ⋮ menu at the top right
+                                    headerAction = if (plusSpotifyPlayer) {
+                                        { PlusPlayerMenuButton(mediaMetadata, state, TextBackgroundColor) }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
@@ -2029,6 +2062,19 @@ fun BottomSheetPlayer(
                     Spacer(Modifier.height(30.dp))
                 }
             }
+        }
+
+        // Metrolist Plus: swipe-up lyrics card (replaces the bottom icon bar)
+        if (plusSpotifyPlayer && !isFullScreen &&
+            LocalConfiguration.current.orientation != Configuration.ORIENTATION_LANDSCAPE
+        ) {
+            PlusLyricsSheet(
+                state = plusLyricsSheetState,
+                mediaMetadata = mediaMetadata,
+                positionProvider = { effectivePosition },
+                contentColor = TextBackgroundColor,
+                expandedBackground = if (useBlackBackground) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+            )
         }
 
         AnimatedVisibility(

@@ -202,6 +202,7 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    headerAction: (@Composable () -> Unit)? = null, // Metrolist Plus: ⋮ at the top right
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -338,7 +339,8 @@ fun Thumbnail(
                     ThumbnailHeader(
                         queueTitle = queueTitle,
                         albumTitle = mediaMetadata?.album?.title,
-                        textColor = textBackgroundColor
+                        textColor = textBackgroundColor,
+                        action = headerAction,
                     )
                 }
                 
@@ -438,7 +440,8 @@ private fun ThumbnailHeader(
     queueTitle: String?,
     albumTitle: String?,
     textColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
 ) {
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = RoomRole.NONE)
@@ -479,6 +482,9 @@ private fun ThumbnailHeader(
                     modifier = Modifier.basicMarquee()
                 )
             }
+        }
+        if (action != null) {
+            Box(modifier = Modifier.align(Alignment.CenterEnd)) { action() }
         }
     }
 }

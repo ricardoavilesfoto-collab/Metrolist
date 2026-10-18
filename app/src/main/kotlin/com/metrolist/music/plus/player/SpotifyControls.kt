@@ -70,6 +70,8 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.PlayerHorizontalPadding
 import com.metrolist.music.constants.SliderStyle
+import com.metrolist.music.extensions.toggleRepeatMode
+import androidx.media3.common.Player
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.SquigglySlider
@@ -132,6 +134,8 @@ fun ColumnScope.PlusSpotifyControls(
     onSeekFinished: () -> Unit,
     onPlayPause: () -> Unit,
     onOpenQueue: () -> Unit,
+    sleepTimerActive: Boolean,
+    onSleepTimerClick: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenArtist: (String) -> Unit,
 ) {
@@ -142,6 +146,7 @@ fun ColumnScope.PlusSpotifyControls(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
     val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
+    val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
     val hasDuration = duration > 0
     val controlsEnabled = !isListenTogetherGuest
 
@@ -376,45 +381,77 @@ fun ColumnScope.PlusSpotifyControls(
 
     Spacer(Modifier.height(8.dp))
 
-    // Output device (Spotify's "devices" button)
+    // Output device (Spotify's "devices" button) · sleep timer · repeat
     val output = rememberAudioOutput()
     val isExternal = output.kind != AudioOutputKind.PHONE
     val outputColor = if (isExternal) SpotifyGreen else contentColor.copy(alpha = 0.8f)
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
-            .align(Alignment.Start)
-            .padding(horizontal = PlayerHorizontalPadding - 8.dp)
-            .clip(RoundedCornerShape(50))
-            .combinedClickable(
-                onClick = { context.openAudioOutputPicker() },
-                onLongClick = { context.openBluetoothSettings() },
-                onClickLabel = stringResource(R.string.plus_output_choose),
-            )
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .fillMaxWidth()
+            .padding(horizontal = PlayerHorizontalPadding - 8.dp),
     ) {
-        Icon(
-            painter = painterResource(
-                when (output.kind) {
-                    AudioOutputKind.BLUETOOTH -> R.drawable.bluetooth
-                    AudioOutputKind.HEADPHONES -> R.drawable.plus_headphones
-                    AudioOutputKind.PHONE -> R.drawable.plus_smartphone
-                },
-            ),
-            contentDescription = null,
-            tint = outputColor,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = output.name ?: stringResource(
-                if (output.kind == AudioOutputKind.HEADPHONES) R.string.plus_output_headphones else R.string.plus_output_this_phone,
-            ),
-            style = MaterialTheme.typography.labelLarge,
-            color = outputColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .clip(RoundedCornerShape(50))
+                .combinedClickable(
+                    onClick = { context.openAudioOutputPicker() },
+                    onLongClick = { context.openBluetoothSettings() },
+                    onClickLabel = stringResource(R.string.plus_output_choose),
+                )
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(
+                    when (output.kind) {
+                        AudioOutputKind.BLUETOOTH -> R.drawable.bluetooth
+                        AudioOutputKind.HEADPHONES -> R.drawable.plus_headphones
+                        AudioOutputKind.PHONE -> R.drawable.plus_smartphone
+                    },
+                ),
+                contentDescription = null,
+                tint = outputColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = output.name ?: stringResource(
+                    if (output.kind == AudioOutputKind.HEADPHONES) R.string.plus_output_headphones else R.string.plus_output_this_phone,
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = outputColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onSleepTimerClick) {
+                Icon(
+                    painter = painterResource(R.drawable.timer),
+                    contentDescription = stringResource(R.string.sleep_timer),
+                    tint = if (sleepTimerActive) SpotifyGreen else contentColor,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            IconButton(
+                onClick = { playerConnection.player.toggleRepeatMode() },
+                enabled = controlsEnabled,
+            ) {
+                Icon(
+                    painter = painterResource(if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat),
+                    contentDescription = null,
+                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) SpotifyGreen else contentColor,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .alpha(if (controlsEnabled) 1f else 0.4f),
+                )
+            }
+        }
     }
 
     Spacer(Modifier.height(4.dp))
