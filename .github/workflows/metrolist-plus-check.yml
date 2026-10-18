@@ -41,6 +41,13 @@ jobs:
         with:
           cache-read-only: true
 
+      # app/build.gradle.kts firma el debug con ~/.android/debug.keystore, que no existe en el runner.
+      - name: Create debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey \
+            -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build debug APK
         run: |
           chmod +x gradlew
