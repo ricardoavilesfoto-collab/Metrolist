@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Metrolist Plus: textos propios del fork (archivo exclusivo, no lo traduce Weblate). -->
+<resources>
+    <string name="plus_pin">Pin</string>
+    <string name="plus_unpin">Unpin</string>
+    <string name="plus_pinned">Pinned</string>
+    <string name="plus_move_to_folder">Move to folder</string>
+    <string name="plus_remove_from_folder">Remove from folder</string>
+    <string name="plus_new_folder">New folder</string>
+    <string name="plus_folder_name">Folder name</string>
+    <string name="plus_rename_folder">Rename folder</string>
+    <string name="plus_delete_folder">Delete folder</string>
+    <string name="plus_delete_folder_message">Delete \"%1$s\"? The playlists inside will go back to your library. No playlist is deleted.</string>
+    <string name="plus_folder_empty">This folder is empty. Open a playlist menu and choose \"Move to folder\".</string>
+    <string name="plus_create">Create</string>
+</resources>

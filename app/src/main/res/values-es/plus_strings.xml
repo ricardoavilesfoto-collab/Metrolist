@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Metrolist Plus: textos propios del fork (archivo exclusivo, no lo traduce Weblate). -->
+<resources>
+    <string name="plus_pin">Fijar</string>
+    <string name="plus_unpin">Desfijar</string>
+    <string name="plus_pinned">Fijada</string>
+    <string name="plus_move_to_folder">Mover a carpeta</string>
+    <string name="plus_remove_from_folder">Sacar de la carpeta</string>
+    <string name="plus_new_folder">Nueva carpeta</string>
+    <string name="plus_folder_name">Nombre de la carpeta</string>
+    <string name="plus_rename_folder">Renombrar carpeta</string>
+    <string name="plus_delete_folder">Eliminar carpeta</string>
+    <string name="plus_delete_folder_message">¿Eliminar \"%1$s\"? Las playlists que contiene vuelven a tu biblioteca. No se borra ninguna playlist.</string>
+    <string name="plus_folder_empty">Esta carpeta está vacía. Abre el menú de una playlist y elige \"Mover a carpeta\".</string>
+    <string name="plus_create">Crear</string>
+</resources>

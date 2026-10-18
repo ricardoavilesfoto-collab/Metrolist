@@ -5,6 +5,7 @@
 
 package com.metrolist.music.ui.screens.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -44,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -85,6 +87,21 @@ import com.metrolist.music.ui.component.PlaylistListItem
 import com.metrolist.music.ui.component.SortHeader
 import com.metrolist.music.extensions.matchesNormalizedQuery
 import com.metrolist.music.extensions.normalizeForSearch
+import com.metrolist.music.plus.library.FolderNameRequest
+import com.metrolist.music.plus.library.LibraryOrganization
+import com.metrolist.music.plus.library.OrganizedRow
+import com.metrolist.music.plus.library.PlaylistFolder
+import com.metrolist.music.plus.library.PlusCreateMenu
+import com.metrolist.music.plus.library.PlusFolderGridItem
+import com.metrolist.music.plus.library.PlusFolderHeader
+import com.metrolist.music.plus.library.PlusFolderListItem
+import com.metrolist.music.plus.library.PlusFolderMenu
+import com.metrolist.music.plus.library.PlusLibraryDialogs
+import com.metrolist.music.plus.library.PlusPlaylistQuickActions
+import com.metrolist.music.plus.library.folderContents
+import com.metrolist.music.plus.library.libraryOrganizationFlow
+import com.metrolist.music.plus.library.organizeRoot
+import com.metrolist.music.plus.library.rememberPlusLibraryDialogState
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LibraryPlaylistsViewModel
@@ -97,6 +114,10 @@ private data class VisiblePlaylistItem(
     val playlist: Playlist,
     val autoPlaylist: Boolean,
     val route: String? = null,
+    // Metrolist Plus
+    val folder: PlaylistFolder? = null,
+    val folderPlaylists: List<Playlist> = emptyList(),
+    val isPinned: Boolean = false,
 )
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -142,6 +163,16 @@ fun LibraryPlaylistsScreen(
     }
 
     val topSize by viewModel.topValue.collectAsStateWithLifecycle(initialValue = 50)
+
+    // Metrolist Plus: pinned playlists and folders
+    val context = LocalContext.current
+    val organization by remember { context.libraryOrganizationFlow() }
+        .collectAsStateWithLifecycle(LibraryOrganization())
+    var openFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    val openFolder = organization.folders.firstOrNull { it.id == openFolderId }
+    val plusDialogs = rememberPlusLibraryDialogState()
+    BackHandler(enabled = openFolder != null) { openFolderId = null }
+    PlusLibraryDialogs(state = plusDialogs, coroutineScope = coroutineScope)
 
     val likedPlaylist =
         Playlist(
@@ -215,6 +246,9 @@ fun LibraryPlaylistsScreen(
         showTopPlaylists,
         showUploadedPlaylists,
         topSize,
+        organization,
+        openFolder,
+        normalizedQuery,
     ) {
         buildList {
             if (showLikedPlaylist) {
@@ -279,8 +313,11 @@ fun LibraryPlaylistsScreen(
                         ),
                     )
                 }
-        }
+        }.organizedWith(organization, openFolder, searching = normalizedQuery.isNotBlank())
     }
+
+    val playlistCount =
+        if (openFolder != null) visibleResults.size else filteredPlaylists.distinctBy { it.id }.size
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -360,8 +397,8 @@ fun LibraryPlaylistsScreen(
             Text(
                 text = pluralStringResource(
                     R.plurals.n_playlist,
-                    visibleResults.count { !it.autoPlaylist },
-                    visibleResults.count { !it.autoPlaylist },
+                    playlistCount,
+                    playlistCount,
                 ),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.secondary,
@@ -425,6 +462,13 @@ fun LibraryPlaylistsScreen(
                         headerContent()
                     }
 
+                    // Metrolist Plus
+                    if (openFolder != null) {
+                        item(key = "plus_folder_header", contentType = CONTENT_TYPE_HEADER) {
+                            PlusFolderHeader(folder = openFolder, onBack = { openFolderId = null })
+                        }
+                    }
+
                     if (visibleResults.isEmpty()) {
                         item(key = "empty_placeholder") {
                             if (searchQuery.isNotBlank()) {
@@ -432,8 +476,10 @@ fun LibraryPlaylistsScreen(
                             } else {
                                 LibrarySearchEmptyPlaceholder(
                                     modifier = Modifier.animateItem(),
-                                    icon = R.drawable.playlist_play,
-                                    text = stringResource(R.string.library_playlist_empty),
+                                    icon = if (openFolder != null) R.drawable.plus_folder else R.drawable.playlist_play,
+                                    text = stringResource(
+                                        if (openFolder != null) R.string.plus_folder_empty else R.string.library_playlist_empty,
+                                    ),
                                 )
                             }
                         }
@@ -444,7 +490,28 @@ fun LibraryPlaylistsScreen(
                         key = { it.key },
                         contentType = { CONTENT_TYPE_PLAYLIST },
                     ) { item ->
-                        if (item.autoPlaylist) {
+                        val folder = item.folder // Metrolist Plus
+                        if (folder != null) {
+                            PlusFolderListItem(
+                                folder = folder,
+                                playlists = item.folderPlaylists,
+                                isPinned = item.isPinned,
+                                onClick = { openFolderId = folder.id },
+                                onMenuClick = {
+                                    menuState.show {
+                                        PlusFolderMenu(
+                                            folder = folder,
+                                            playlistCount = item.folderPlaylists.size,
+                                            isPinned = item.isPinned,
+                                            coroutineScope = coroutineScope,
+                                            dialogs = plusDialogs,
+                                            onDismiss = menuState::dismiss,
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        } else if (item.autoPlaylist) {
                             PlaylistListItem(
                                 playlist = item.playlist,
                                 autoPlaylist = true,
@@ -462,6 +529,10 @@ fun LibraryPlaylistsScreen(
                                 coroutineScope = coroutineScope,
                                 playlist = item.playlist,
                                 modifier = Modifier.animateItem(),
+                                isPinned = item.isPinned,
+                                extraMenuContent = {
+                                    PlusPlaylistQuickActions(item.playlist, coroutineScope, plusDialogs, menuState::dismiss)
+                                },
                             )
                         }
                     }
@@ -493,6 +564,17 @@ fun LibraryPlaylistsScreen(
                         headerContent()
                     }
 
+                    // Metrolist Plus
+                    if (openFolder != null) {
+                        item(
+                            key = "plus_folder_header",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = CONTENT_TYPE_HEADER,
+                        ) {
+                            PlusFolderHeader(folder = openFolder, onBack = { openFolderId = null })
+                        }
+                    }
+
                     if (visibleResults.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             if (searchQuery.isNotBlank()) {
@@ -500,8 +582,10 @@ fun LibraryPlaylistsScreen(
                             } else {
                                 LibrarySearchEmptyPlaceholder(
                                     modifier = Modifier.animateItem(),
-                                    icon = R.drawable.playlist_play,
-                                    text = stringResource(R.string.library_playlist_empty),
+                                    icon = if (openFolder != null) R.drawable.plus_folder else R.drawable.playlist_play,
+                                    text = stringResource(
+                                        if (openFolder != null) R.string.plus_folder_empty else R.string.library_playlist_empty,
+                                    ),
                                 )
                             }
                         }
@@ -512,7 +596,27 @@ fun LibraryPlaylistsScreen(
                         key = { it.key },
                         contentType = { CONTENT_TYPE_PLAYLIST },
                     ) { item ->
-                        if (item.autoPlaylist) {
+                        val folder = item.folder // Metrolist Plus
+                        if (folder != null) {
+                            PlusFolderGridItem(
+                                folder = folder,
+                                playlists = item.folderPlaylists,
+                                onClick = { openFolderId = folder.id },
+                                onMenuClick = {
+                                    menuState.show {
+                                        PlusFolderMenu(
+                                            folder = folder,
+                                            playlistCount = item.folderPlaylists.size,
+                                            isPinned = item.isPinned,
+                                            coroutineScope = coroutineScope,
+                                            dialogs = plusDialogs,
+                                            onDismiss = menuState::dismiss,
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        } else if (item.autoPlaylist) {
                             PlaylistGridItem(
                                 playlist = item.playlist,
                                 fillMaxWidth = true,
@@ -533,6 +637,9 @@ fun LibraryPlaylistsScreen(
                                 coroutineScope = coroutineScope,
                                 playlist = item.playlist,
                                 modifier = Modifier.animateItem(),
+                                extraMenuContent = {
+                                    PlusPlaylistQuickActions(item.playlist, coroutineScope, plusDialogs, menuState::dismiss)
+                                },
                             )
                         }
                     }
@@ -542,7 +649,21 @@ fun LibraryPlaylistsScreen(
 
         // Always visible + button (no scroll hiding)
         FloatingActionButton(
-            onClick = { showCreatePlaylistDialog = true },
+            onClick = {
+                // Metrolist Plus: choose between a playlist and a folder
+                menuState.show {
+                    PlusCreateMenu(
+                        onCreatePlaylist = {
+                            menuState.dismiss()
+                            showCreatePlaylistDialog = true
+                        },
+                        onCreateFolder = {
+                            menuState.dismiss()
+                            plusDialogs.nameRequest = FolderNameRequest.Create(playlistKey = null)
+                        },
+                    )
+                }
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(
@@ -557,4 +678,45 @@ fun LibraryPlaylistsScreen(
             )
         }
     }
+}
+
+// Metrolist Plus: pinned items first, then auto playlists, folders and the remaining playlists.
+// Inside a folder only its playlists are shown; while searching the list stays flat.
+private fun List<VisiblePlaylistItem>.organizedWith(
+    organization: LibraryOrganization,
+    openFolder: PlaylistFolder?,
+    searching: Boolean,
+): List<VisiblePlaylistItem> {
+    val playlists = filterNot { it.autoPlaylist }.map { it.playlist }
+    if (openFolder != null) {
+        return organization.folderContents(openFolder.id, playlists).map { it.toVisibleItem() }
+    }
+    if (searching) return this
+
+    val organized = organization.organizeRoot(playlists)
+    return organized.pinned.map { it.toVisibleItem() } +
+        filter { it.autoPlaylist } +
+        organized.rest.map { it.toVisibleItem() }
+}
+
+private fun OrganizedRow.toVisibleItem() = when (this) {
+    is OrganizedRow.PlaylistRow -> VisiblePlaylistItem(
+        key = playlist.id,
+        playlist = playlist,
+        autoPlaylist = false,
+        isPinned = isPinned,
+    )
+
+    is OrganizedRow.FolderRow -> VisiblePlaylistItem(
+        key = "plus_folder_${folder.id}",
+        playlist = Playlist(
+            playlist = PlaylistEntity(id = folder.id, name = folder.name),
+            songCount = 0,
+            songThumbnails = emptyList(),
+        ),
+        autoPlaylist = false,
+        folder = folder,
+        folderPlaylists = playlists,
+        isPinned = isPinned,
+    )
 }

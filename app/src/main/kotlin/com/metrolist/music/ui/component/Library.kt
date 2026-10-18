@@ -8,11 +8,15 @@ package com.metrolist.music.ui.component
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.music.LocalNavController
 import com.metrolist.innertube.models.WatchEndpoint
@@ -171,15 +175,27 @@ fun LibraryPlaylistListItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     playlist: Playlist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Metrolist Plus: pin indicator and quick actions shown on top of the menu
+    isPinned: Boolean = false,
+    extraMenuContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val navController = LocalNavController.current
     PlaylistListItem(
     playlist = playlist,
     trailingContent = {
+        if (isPinned) {
+            Icon(
+                painter = painterResource(R.drawable.ic_push_pin),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
         androidx.compose.material3.IconButton(
             onClick = {
                 menuState.show {
+                    extraMenuContent?.invoke(this)
                     if (playlist.playlist.isEditable || playlist.songCount != 0) {
                         PlaylistMenu(
                             playlist = playlist,
@@ -240,7 +256,9 @@ fun LibraryPlaylistGridItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     playlist: Playlist,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Metrolist Plus: quick actions shown on top of the menu
+    extraMenuContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val navController = LocalNavController.current
     PlaylistGridItem(
@@ -257,6 +275,7 @@ fun LibraryPlaylistGridItem(
             },
             onLongClick = {
                 menuState.show {
+                    extraMenuContent?.invoke(this)
                     if (playlist.playlist.isEditable || playlist.songCount != 0) {
                         PlaylistMenu(
                             playlist = playlist,
