@@ -15,6 +15,13 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Biblioteca más rápida y "Eliminar descargas" por playlist
+- Qué (1): la sincronización de playlists que se dispara al entrar a Biblioteca → Playlists ahora corre como máximo cada 15 minutos (antes en cada entrada, descargando la lista de canciones de las ~136 playlists y ocupando la base de datos; las playlists tardaban ~10 s en aparecer). La sincronización completa al abrir la app (`tryAutoSync`) no cambia.
+- Qué (2): botón rápido "Eliminar descargas" arriba del menú ⋮ de cada playlist en la Biblioteca, visible si al menos una canción tiene descarga (completa, en curso o pausada). El menú original solo permitía borrar si la playlist estaba descargada al 100%.
+- Archivos propios: `plus/library/LibrarySyncThrottle.kt`; `plus/library/LibraryOrganizationUi.kt` (botón en `PlusPlaylistQuickActions`, `RemoveDownloadsRequest`, diálogo en `PlusLibraryDialogs` con `DownloadService.sendRemoveDownload`); textos `plus_remove_downloads*`.
+- Archivo del original modificado: `ui/screens/library/LibraryPlaylistsScreen.kt` → `LaunchedEffect(Unit)`: `if (ytmSync && PlusLibrarySyncThrottle.shouldSyncSavedPlaylists())` (marcado `// Metrolist Plus`).
+- Notas para sincronizar: si el original agrega su propio límite a esa sincronización, quitar el nuestro.
+
 ## 2026-10-18 — Reproductor Plus sin barra inferior: tarjeta de letra deslizable, ⋮ arriba, temporizador y repetir junto al dispositivo
 - Qué: con el Reproductor Plus activo se oculta la barra de íconos de abajo (cola, temporizador, aleatorio, letra, repetir, ⋮) porque duplicaba los controles. En su lugar: tarjeta "Letra" asomada abajo que al deslizarla hacia arriba muestra la letra sincronizada (y hacia abajo vuelve al reproductor); ⋮ en la esquina superior derecha junto a "Reproduciendo desde…"; temporizador y repetir a la derecha de la línea del dispositivo de salida. La cola se abre con su botón de la fila de controles.
 - Archivos propios: `plus/player/LyricsSheet.kt` (`PlusLyricsSheet` con `BottomSheet` + `InlineLyricsView` del original, `PlusPlayerMenuButton` con `PlayerMenu`, `PlusLyricsPeekHeight`); `plus/player/SpotifyControls.kt` (fila dispositivo · temporizador · repetir; parámetros `sleepTimerActive`, `onSleepTimerClick`).

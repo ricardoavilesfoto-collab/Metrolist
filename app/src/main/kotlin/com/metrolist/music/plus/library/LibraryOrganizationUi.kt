@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,7 +48,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadService
+import com.metrolist.music.LocalDatabase
+import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.R
+import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Playlist
@@ -68,12 +74,15 @@ sealed interface FolderNameRequest {
     data class Rename(val folder: PlaylistFolder) : FolderNameRequest
 }
 
+data class RemoveDownloadsRequest(val playlistName: String, val songIds: List<String>)
+
 /** Dialogs live at screen level so they survive the bottom sheet that opened them being dismissed. */
 @Stable
 class PlusLibraryDialogState {
     var moveTarget by mutableStateOf<String?>(null)
     var nameRequest by mutableStateOf<FolderNameRequest?>(null)
     var deleteTarget by mutableStateOf<PlaylistFolder?>(null)
+    var removeDownloads by mutableStateOf<RemoveDownloadsRequest?>(null)
 }
 
 @Composable
@@ -212,6 +221,16 @@ fun PlusPlaylistQuickActions(
     val isPinned = organization.isPinned(key)
     val currentFolder = organization.folderOf(key)
 
+    // Songs of this playlist with any download (finished, in progress or paused), even if it is only partial
+    val database = LocalDatabase.current
+    val songIds by produceState(emptyList<String>(), playlist.id) {
+        database.playlistSongs(playlist.id).collect { songs -> value = songs.map { it.song.id } }
+    }
+    val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
+    val downloadedIds = remember(songIds, downloads) {
+        songIds.filter { id -> downloads[id]?.let { it.state != Download.STATE_REMOVING } == true }
+    }
+
     NewActionGrid(
         actions = buildList {
             add(
@@ -255,6 +274,25 @@ fun PlusPlaylistQuickActions(
                         text = stringResource(R.string.plus_remove_from_folder),
                         onClick = {
                             coroutineScope.launch { context.updateLibraryOrganization { it.removeFromFolders(key) } }
+                            onDismiss()
+                        },
+                    ),
+                )
+            }
+            if (downloadedIds.isNotEmpty()) {
+                add(
+                    NewAction(
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.delete),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        text = stringResource(R.string.plus_remove_downloads),
+                        onClick = {
+                            dialogs.removeDownloads = RemoveDownloadsRequest(playlist.playlist.name, downloadedIds)
                             onDismiss()
                         },
                     ),
@@ -474,6 +512,34 @@ fun PlusLibraryDialogs(
                 }
             },
             onDismiss = { state.nameRequest = null },
+        )
+    }
+
+    state.removeDownloads?.let { request ->
+        AlertDialog(
+            onDismissRequest = { state.removeDownloads = null },
+            icon = { Icon(painterResource(R.drawable.delete), contentDescription = null) },
+            title = { Text(stringResource(R.string.plus_remove_downloads)) },
+            text = {
+                Text(stringResource(R.string.plus_remove_downloads_message, request.songIds.size, request.playlistName))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.removeDownloads = null
+                        request.songIds.forEach { songId ->
+                            DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, songId, false)
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.plus_remove_downloads))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state.removeDownloads = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
         )
     }
 

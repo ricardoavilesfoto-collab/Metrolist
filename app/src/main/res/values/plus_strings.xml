@@ -24,5 +24,7 @@
     <string name="plus_next_from">Next from: %1$s</string>
     <string name="plus_up_next">Up next</string>
     <string name="plus_clear_queue">Clear queue</string>
+    <string name="plus_remove_downloads">Remove downloads</string>
+    <string name="plus_remove_downloads_message">Remove the %1$d downloaded songs of \"%2$s\"? They will still be available online.</string>
     <string name="plus_swipe_song_to_add">Swipe a song right to add it to the queue, or left to play it next</string>
 </resources>

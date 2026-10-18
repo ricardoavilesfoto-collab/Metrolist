@@ -97,6 +97,7 @@ import com.metrolist.music.plus.library.PlusFolderHeader
 import com.metrolist.music.plus.library.PlusFolderListItem
 import com.metrolist.music.plus.library.PlusFolderMenu
 import com.metrolist.music.plus.library.PlusLibraryDialogs
+import com.metrolist.music.plus.library.PlusLibrarySyncThrottle
 import com.metrolist.music.plus.library.PlusPlaylistQuickActions
 import com.metrolist.music.plus.library.folderContents
 import com.metrolist.music.plus.library.libraryOrganizationFlow
@@ -334,7 +335,8 @@ fun LibraryPlaylistsScreen(
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     LaunchedEffect(Unit) {
-        if (ytmSync) {
+        // Metrolist Plus: sync at most every 15 min so the library shows up right away
+        if (ytmSync && PlusLibrarySyncThrottle.shouldSyncSavedPlaylists()) {
             withContext(Dispatchers.IO) {
                 viewModel.sync()
             }

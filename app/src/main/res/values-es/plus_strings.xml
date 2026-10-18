@@ -24,5 +24,7 @@
     <string name="plus_next_from">Siguiente desde: %1$s</string>
     <string name="plus_up_next">A continuación</string>
     <string name="plus_clear_queue">Borrar cola</string>
+    <string name="plus_remove_downloads">Eliminar descargas</string>
+    <string name="plus_remove_downloads_message">¿Eliminar las %1$d canciones descargadas de \"%2$s\"? Seguirán disponibles por internet.</string>
     <string name="plus_swipe_song_to_add">Desliza una canción a la derecha para agregarla a la cola, o a la izquierda para reproducirla a continuación</string>
 </resources>
