@@ -5,10 +5,15 @@
  * Se dibuja con el servicio de accesibilidad [PlusIslandAccessibilityService] (ventana encima de la barra de estado).
  * Si ese servicio está apagado pero hay permiso "Mostrar sobre otras apps", se muestra debajo de la barra de estado,
  * porque una ventana normal queda tapada por los íconos del sistema y no recibe toques ahí.
+ *
+ * Animaciones: la píldora nace de la cámara al salir de la app y vuelve a ella al regresar; la tarjeta se estira
+ * desde la píldora. Todo se anima recortando la forma en la fase de dibujo (graphicsLayer): la ventana del sistema
+ * solo cambia de tamaño una vez por transición, porque redimensionarla en cada cuadro se ve a saltos.
  */
 
 package com.metrolist.music.plus.island
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -21,27 +26,25 @@ import android.view.MotionEvent
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -66,18 +69,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -164,16 +174,51 @@ fun plusDynamicIslandSettingsItem(): Material3SettingsItem {
     )
 }
 
-/** Where and how big the island is, in pixels. [x] is the offset from the horizontal center of the screen. */
+/**
+ * Where and how big the island is, in pixels. The window ("frame") is the pill plus a small margin, so the spring
+ * can overshoot a bit past the pill. [x] is the offset from the horizontal center of the screen; [frameY] the top.
+ */
 private data class IslandGeometry(
     val aroundCamera: Boolean,
     val pillWidth: Int,
     val pillHeight: Int,
+    val marginX: Int,
+    val marginY: Int,
     val x: Int,
-    val y: Int,
+    val frameY: Int,
     val cardWidth: Int,
     val cardX: Int,
-)
+    /** Camera hole inside the frame: the pill grows out of it and goes back into it. */
+    val dotSize: Int,
+    val dotCenterY: Int,
+) {
+    val frameWidth get() = pillWidth + 2 * marginX
+    val frameHeight get() = pillHeight + 2 * marginY
+}
+
+private fun lerp(start: Float, stop: Float, fraction: Float) = start + (stop - start) * fraction
+
+/** Rounded rect that goes from [from] (t = 0) to the whole layer inset by [inset] (t = 1). Values past 1 overshoot. */
+private fun morphShape(
+    from: RoundRect,
+    insetX: Float,
+    insetY: Float,
+    toRadius: Float,
+    t: Float,
+) = object : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val radius = lerp(from.topLeftCornerRadius.x, toRadius, t.coerceIn(0f, 1f))
+        return Outline.Rounded(
+            RoundRect(
+                left = lerp(from.left, insetX, t),
+                top = lerp(from.top, insetY, t),
+                right = lerp(from.right, size.width - insetX, t),
+                bottom = lerp(from.bottom, size.height - insetY, t),
+                cornerRadius = CornerRadius(radius),
+            ),
+        )
+    }
+}
 
 /** Created by MusicService on the main thread; [release] must be called from onDestroy. */
 class PlusDynamicIsland(
@@ -189,7 +234,6 @@ class PlusDynamicIsland(
     private var root: IslandRoot? = null
     private var rootWindowManager: WindowManager? = null
     private var rootParams: WindowManager.LayoutParams? = null
-    private var geometry: IslandGeometry? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
     private var prefJob: Job? = null
     private var hostJob: Job? = null
@@ -200,11 +244,16 @@ class PlusDynamicIsland(
     private var artist by mutableStateOf("")
     private var artwork by mutableStateOf<String?>(null)
     private var isPlaying by mutableStateOf(false)
+    private var geometry by mutableStateOf<IslandGeometry?>(null)
+
+    /** What the user asked for: card (true) or pill (false). */
     private var expanded by mutableStateOf(false)
-    private var pillWidth by mutableStateOf(116.dp)
-    private var pillHeight by mutableStateOf(32.dp)
-    private var cardWidth by mutableStateOf(340.dp)
-    private var cardTopInset by mutableStateOf(0.dp)
+
+    /** Whether the window is currently laid out as the card. Lags [expanded] while the morph runs. */
+    private var cardShown by mutableStateOf(false)
+
+    /** Going back into the camera before the window is removed. */
+    private var leaving by mutableStateOf(false)
 
     fun start() {
         player.addListener(this)
@@ -223,7 +272,7 @@ class PlusDynamicIsland(
         // The accessibility service can be turned on or off at any time: move the window to the new host.
         hostJob = scope.launch {
             PlusIslandAccessibilityService.connected.collect {
-                hide()
+                removeWindow()
                 update()
             }
         }
@@ -235,7 +284,7 @@ class PlusDynamicIsland(
         pausedJob?.cancel()
         player.removeListener(this)
         ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
-        hide()
+        removeWindow()
     }
 
     override fun onStart(owner: LifecycleOwner) {
@@ -304,16 +353,18 @@ class PlusDynamicIsland(
     }
 
     private fun show(host: Context) {
-        if (root != null) return
+        if (root != null) {
+            leaving = false
+            return
+        }
         runCatching {
             val aroundCamera = host is PlusIslandAccessibilityService
             val windowManager = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val geo = computeGeometry(host, windowManager, aroundCamera)
-            val density = host.resources.displayMetrics.density
-            pillWidth = (geo.pillWidth / density).dp
-            pillHeight = (geo.pillHeight / density).dp
-            cardWidth = (geo.cardWidth / density).dp
-            cardTopInset = if (aroundCamera) pillHeight else 0.dp
+            geometry = geo
+            expanded = false
+            cardShown = false
+            leaving = false
 
             val owner = OverlayLifecycleOwner().also { it.create() }
             val view = IslandRoot(host).apply {
@@ -331,26 +382,33 @@ class PlusDynamicIsland(
             root = view
             rootWindowManager = windowManager
             rootParams = params
-            geometry = geo
             lifecycleOwner = owner
         }.onFailure { Timber.w(it, "Could not show the Dynamic Island") }
     }
 
+    /** Animates back into the camera; the window is removed when the animation ends. */
     private fun hide() {
+        if (root == null) return
         expanded = false
+        leaving = true
+    }
+
+    private fun removeWindow() {
+        expanded = false
+        cardShown = false
+        leaving = false
         val view = root ?: return
         runCatching { rootWindowManager?.removeView(view) }
         lifecycleOwner?.destroy()
         root = null
         rootWindowManager = null
         rootParams = null
-        geometry = null
         lifecycleOwner = null
     }
 
-    private fun changeExpanded(value: Boolean) {
-        if (expanded == value) return
-        expanded = value
+    private fun setCardShown(value: Boolean) {
+        if (cardShown == value) return
+        cardShown = value
         val view = root ?: return
         val params = rootParams ?: return
         val geo = geometry ?: return
@@ -359,13 +417,19 @@ class PlusDynamicIsland(
         runCatching { rootWindowManager?.updateViewLayout(view, params) }
     }
 
+    private fun hideForThisSong() {
+        hiddenForMediaId = player.currentMediaItem?.mediaId
+        root?.post { update() }
+    }
+
+    @SuppressLint("DiscouragedApi", "InternalInsetResource")
     private fun computeGeometry(host: Context, windowManager: WindowManager, aroundCamera: Boolean): IslandGeometry {
         val density = host.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
 
         val screenWidth: Int
-        val statusBar: Int
-        var cutout: Rect? = null
+        var statusBar = 0
+        val cutout: Rect?
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val metrics = windowManager.currentWindowMetrics
             screenWidth = metrics.bounds.width()
@@ -373,32 +437,39 @@ class PlusDynamicIsland(
             cutout = metrics.windowInsets.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
         } else {
             screenWidth = host.resources.displayMetrics.widthPixels
-            statusBar = dp(24)
+            cutout = null
+        }
+        if (statusBar <= 0) {
+            val id = host.resources.getIdentifier("status_bar_height", "dimen", "android")
+            statusBar = if (id > 0) host.resources.getDimensionPixelSize(id) else dp(24)
         }
 
+        val marginX = dp(6)
+        val marginY = dp(3)
         val pillHeight: Int
         val pillWidth: Int
         val x: Int
-        val y: Int
+        val pillTop: Int
+        val dotSize: Int
+        val dotCenterY: Int
         if (aroundCamera) {
-            val camera = cutout
-            if (camera != null) {
-                pillHeight = maxOf(camera.height() + dp(8), dp(28))
-                // Artwork on the left of the camera, equalizer on the right.
-                pillWidth = maxOf(dp(116), camera.width() + 2 * pillHeight + dp(8))
-                x = camera.centerX() - screenWidth / 2
-                y = maxOf(0, camera.centerY() - pillHeight / 2)
-            } else {
-                pillHeight = maxOf(statusBar - dp(4), dp(24))
-                pillWidth = dp(116)
-                x = 0
-                y = maxOf(0, (statusBar - pillHeight) / 2)
-            }
+            // Leaves a few dp above and below the pill inside the status bar, like the iPhone.
+            pillHeight = (statusBar - dp(10)).coerceIn(dp(22), dp(30))
+            val centerY = cutout?.centerY() ?: (statusBar / 2)
+            pillTop = (centerY - pillHeight / 2).coerceAtLeast(dp(4))
+            x = if (cutout != null) cutout.centerX() - screenWidth / 2 else 0
+            // Artwork on the left of the camera, equalizer on the right.
+            pillWidth = ((cutout?.width() ?: 0) + 2 * pillHeight + dp(20)).coerceIn(dp(112), dp(150))
+            val hole = cutout?.let { minOf(it.width(), it.height()) } ?: dp(12)
+            dotSize = hole.coerceIn(dp(8), pillHeight - dp(4))
+            dotCenterY = (centerY - pillTop).coerceIn(dotSize / 2, pillHeight - dotSize / 2) + marginY
         } else {
-            pillHeight = dp(34)
-            pillWidth = dp(150)
+            pillHeight = dp(30)
+            pillWidth = dp(140)
             x = 0
-            y = statusBar + dp(4)
+            pillTop = statusBar + dp(6)
+            dotSize = dp(12)
+            dotCenterY = pillHeight / 2 + marginY
         }
         val cardWidth = minOf(dp(360), screenWidth - dp(16))
         val maxCardOffset = (screenWidth - cardWidth) / 2
@@ -406,10 +477,14 @@ class PlusDynamicIsland(
             aroundCamera = aroundCamera,
             pillWidth = pillWidth,
             pillHeight = pillHeight,
+            marginX = marginX,
+            marginY = marginY,
             x = x,
-            y = y,
+            frameY = (pillTop - marginY).coerceAtLeast(0),
             cardWidth = cardWidth,
             cardX = x.coerceIn(-maxCardOffset, maxCardOffset),
+            dotSize = dotSize,
+            dotCenterY = dotCenterY,
         )
     }
 
@@ -426,7 +501,7 @@ class PlusDynamicIsland(
     ).apply {
         gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         x = geo.x
-        y = geo.y
+        y = geo.frameY
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -435,8 +510,7 @@ class PlusDynamicIsland(
     }
 
     private fun openApp() {
-        // The window goes away in onStart() when the app comes to the front.
-        changeExpanded(false)
+        // onStart() then sends the island back into the camera.
         runCatching {
             context.startActivity(
                 Intent(context, MainActivity::class.java).addFlags(
@@ -455,68 +529,101 @@ class PlusDynamicIsland(
         }
     }
 
-    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     private fun IslandContent() {
+        val geo = geometry ?: return
+        val appear = remember { Animatable(0f) }
+        val morph = remember { Animatable(0f) }
+
+        // A single driver: each phase starts from wherever the previous one was interrupted.
+        val phase = when {
+            leaving -> 0
+            expanded -> 2
+            else -> 1
+        }
+        LaunchedEffect(phase) {
+            when (phase) {
+                0 -> {
+                    if (cardShown) {
+                        morph.animateTo(0f, tween(160, easing = FastOutSlowInEasing))
+                        setCardShown(false)
+                    }
+                    appear.animateTo(0f, tween(260, easing = FastOutSlowInEasing))
+                    root?.post { if (leaving) removeWindow() }
+                }
+                1 -> {
+                    if (cardShown) {
+                        morph.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
+                        setCardShown(false)
+                    }
+                    appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow))
+                }
+                else -> {
+                    appear.snapTo(1f)
+                    setCardShown(true)
+                    morph.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
+                }
+            }
+        }
         LaunchedEffect(expanded, isPlaying) {
             if (expanded) {
                 delay(AUTO_COLLAPSE_MS)
-                changeExpanded(false)
-                update()
+                expanded = false
             }
         }
-        // The window is WRAP_CONTENT: its size changes once (snap) and only the content animates. Animating the size
-        // would resize the system window on every frame, which stutters.
-        AnimatedContent(
-            targetState = expanded,
-            transitionSpec = {
-                (fadeIn(tween(160)) + scaleIn(tween(240), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 0f)))
-                    .togetherWith(fadeOut(tween(100)))
-                    .using(SizeTransform(clip = false) { _, _ -> snap() })
-            },
-            label = "island",
-        ) { isExpanded ->
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(if (isExpanded) 32.dp else 50.dp))
-                    .background(Color.Black)
-                    .combinedClickable(
-                        onClick = { if (isExpanded) openApp() else changeExpanded(true) },
-                        onLongClick = {
-                            // Hide until the next song.
-                            hiddenForMediaId = player.currentMediaItem?.mediaId
-                            root?.post { update() }
-                        },
-                    ),
-            ) {
-                if (isExpanded) ExpandedCard() else CollapsedPill()
-            }
-        }
+
+        if (cardShown) ExpandedCard(geo) { morph.value } else CollapsedPill(geo) { appear.value }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    private fun CollapsedPill() {
-        val artSize = pillHeight - 8.dp
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+    private fun CollapsedPill(geo: IslandGeometry, appear: () -> Float) {
+        val density = LocalDensity.current
+        val pillHeight = with(density) { geo.pillHeight.toDp() }
+        val art = pillHeight - 10.dp
+        val dot = remember(geo) {
+            val cx = geo.frameWidth / 2f
+            val r = geo.dotSize / 2f
+            RoundRect(cx - r, geo.dotCenterY - r, cx + r, geo.dotCenterY + r, cornerRadius = CornerRadius(r))
+        }
+        Box(
             modifier = Modifier
-                .width(pillWidth)
-                .height(pillHeight)
-                .padding(horizontal = 4.dp),
+                .size(with(density) { geo.frameWidth.toDp() }, with(density) { geo.frameHeight.toDp() })
+                .graphicsLayer {
+                    clip = true
+                    shape = morphShape(dot, geo.marginX.toFloat(), geo.marginY.toFloat(), geo.pillHeight / 2f, appear())
+                }
+                .background(Color.Black)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { expanded = true },
+                    onLongClick = { hideForThisSong() },
+                ),
         ) {
-            AsyncImage(
-                model = artwork,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(artSize).clip(CircleShape).background(Color.DarkGray),
-            )
-            Spacer(Modifier.weight(1f))
-            Equalizer(playing = isPlaying, height = minOf(16.dp, artSize), modifier = Modifier.padding(end = 6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = with(density) { geo.marginX.toDp() } + 5.dp)
+                    .graphicsLayer { alpha = ((appear() - 0.45f) / 0.55f).coerceIn(0f, 1f) },
+            ) {
+                AsyncImage(
+                    model = artwork,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(art).clip(RoundedCornerShape(30)).background(Color.DarkGray),
+                )
+                Spacer(Modifier.weight(1f))
+                Equalizer(playing = isPlaying, height = art * 0.65f, modifier = Modifier.padding(end = 4.dp))
+            }
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    private fun ExpandedCard() {
+    private fun ExpandedCard(geo: IslandGeometry, morph: () -> Float) {
+        val density = LocalDensity.current
         var position by remember { mutableFloatStateOf(0f) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -525,55 +632,81 @@ class PlusDynamicIsland(
                 delay(500)
             }
         }
-        Column(
+        // The pill, as seen inside the (wider) card window.
+        val pill = remember(geo) {
+            val left = (geo.cardWidth - geo.pillWidth) / 2f + (geo.x - geo.cardX)
+            val top = geo.marginY.toFloat()
+            RoundRect(left, top, left + geo.pillWidth, top + geo.pillHeight, cornerRadius = CornerRadius(geo.pillHeight / 2f))
+        }
+        // Content starts below the camera line so the title never sits under the hole.
+        val topInset = if (geo.aroundCamera) with(density) { (geo.marginY + geo.pillHeight).toDp() } + 6.dp else 14.dp
+        Box(
             modifier = Modifier
-                .width(cardWidth)
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 12.dp + cardTopInset),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = artwork,
-                    contentDescription = stringResource(R.string.plus_island_open),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)).background(Color.DarkGray),
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        title,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        artist,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                .width(with(density) { geo.cardWidth.toDp() })
+                .graphicsLayer {
+                    clip = true
+                    shape = morphShape(pill, 0f, 0f, 36.dp.toPx(), morph())
                 }
-                Equalizer(playing = isPlaying)
-            }
-            Spacer(Modifier.height(12.dp))
-            LinearProgressIndicator(
-                progress = { position },
-                color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.25f),
-                drawStopIndicator = {},
-                modifier = Modifier.fillMaxWidth().height(3.dp).clip(CircleShape),
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+                .background(Color.Black)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { openApp() },
+                    onLongClick = { hideForThisSong() },
+                ),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = ((morph() - 0.35f) / 0.65f).coerceIn(0f, 1f) }
+                    .padding(start = 18.dp, end = 18.dp, top = topInset, bottom = 14.dp),
             ) {
-                IslandButton(R.drawable.skip_previous, 32.dp) { player.seekToPrevious() }
-                IslandButton(if (isPlaying) R.drawable.pause else R.drawable.play, 40.dp) { togglePlay() }
-                IslandButton(R.drawable.skip_next, 32.dp) { player.seekToNext() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(
+                        model = artwork,
+                        contentDescription = stringResource(R.string.plus_island_open),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(Color.DarkGray),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            title,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            artist,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Equalizer(playing = isPlaying)
+                }
+                Spacer(Modifier.height(14.dp))
+                LinearProgressIndicator(
+                    progress = { position },
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.25f),
+                    drawStopIndicator = {},
+                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(CircleShape),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    IslandButton(R.drawable.skip_previous, 32.dp) { player.seekToPrevious() }
+                    IslandButton(if (isPlaying) R.drawable.pause else R.drawable.play, 40.dp) { togglePlay() }
+                    IslandButton(R.drawable.skip_next, 32.dp) { player.seekToNext() }
+                }
             }
         }
     }
@@ -633,7 +766,7 @@ class PlusDynamicIsland(
     private inner class IslandRoot(context: Context) : FrameLayout(context) {
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
             if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
-                if (expanded) post { changeExpanded(false) }
+                if (expanded) post { expanded = false }
                 return false
             }
             return super.dispatchTouchEvent(event)
