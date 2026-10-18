@@ -83,6 +83,7 @@ import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
+import com.metrolist.music.plus.export.plusSaveAudioMenuItem
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.ListDialog
@@ -897,7 +898,7 @@ fun SongMenu(
         item {
             Material3MenuGroup(
                 items =
-                    listOf(
+                    listOfNotNull(
                         when (download?.state) {
                             Download.STATE_COMPLETED -> {
                                 Material3MenuItemData(
@@ -958,6 +959,12 @@ fun SongMenu(
                                     },
                                 )
                             }
+                        },
+                        // Metrolist Plus: export the downloaded song as .m4a for video editors
+                        if (download?.state == Download.STATE_COMPLETED) {
+                            plusSaveAudioMenuItem(context, song, downloadUtil.downloadCache, onDismiss)
+                        } else {
+                            null
                         },
                     ),
             )

@@ -57,4 +57,9 @@
     <string name="plus_transfer_doubtful">Revisa estas (se agregaron, pero quizá no sea la versión correcta): %1$s</string>
     <string name="plus_transfer_clear">Limpiar</string>
     <string name="plus_transfer_remove">Quitar</string>
+    <string name="plus_save_audio">Guardar como archivo de audio (M4A)</string>
+    <string name="plus_save_audio_desc">Para editores de video como CapCut. Se guarda en Música/Metrolist</string>
+    <string name="plus_save_audio_started">Guardando \"%1$s\"…</string>
+    <string name="plus_save_audio_done">Guardado en Música/Metrolist: %1$s</string>
+    <string name="plus_save_audio_error">No se pudo guardar el archivo de audio</string>
 </resources>

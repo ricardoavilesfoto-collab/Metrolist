@@ -15,6 +15,16 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Guardar una canción descargada como archivo .m4a
+- Qué: en el menú de una canción descargada (estado completo) aparece "Guardar como archivo de audio (M4A)". Copia la descarga desde la caché privada de ExoPlayer a un archivo temporal, la convierte con Media3 Transformer a un mp4 normal con AAC (si el stream ya era AAC solo se re-empaqueta, sin pérdida; si era opus/webm se re-codifica a 256 kbps) y la guarda con MediaStore en `Música/Metrolist/Artista - Título.m4a`. Avisa con Toasts; sigue aunque se cierre el menú. Solo Android 10+ (sin pedir permisos).
+- Por qué: Ricardo quiere usar canciones específicas que elige en videos de CapCut/Edits; las descargas normales están en la carpeta privada de la app y en formato de caché que ningún editor abre. Es en `.m4a` y no `.mp3` porque Android no trae codificador MP3.
+- Archivos propios: `plus/export/SaveAudioFile.kt` (`plusSaveAudioMenuItem`, `PlusAudioSaver`), textos `plus_save_audio*` en `values/plus_strings.xml` y `values-es/plus_strings.xml`.
+- Archivos del original modificados (marcados `Metrolist Plus`):
+  - `gradle/libs.versions.toml`: `media3-transformer` con `version.ref = "media3"`.
+  - `app/build.gradle.kts`: `implementation(libs.media3.transformer)`.
+  - `ui/menu/SongMenu.kt`: el grupo de descarga usa `listOfNotNull(...)` y agrega `plusSaveAudioMenuItem(context, song, downloadUtil.downloadCache, onDismiss)` si la descarga está completa; import de `plusSaveAudioMenuItem`.
+- Notas para sincronizar: mantener la dependencia con la misma versión de media3 que use el original. Si cambia el grupo de descarga de `SongMenu`, volver a agregar el elemento. Si el original cifra la caché de descargas (`secretKey` en `AppModule.provideDownloadCache`), `copyFromCache` debe usar la misma clave.
+
 ## 2026-10-18 — Biblioteca sin la pestaña "Canciones"
 - Qué: se quitó el chip "Canciones" (`LibraryFilter.SONGS`) de la fila de pestañas de la Biblioteca. La pantalla `LibrarySongsScreen` y su rama en el `when` siguen existiendo (si la preferencia guardada era SONGS, se abre y su botón regresa a la Biblioteca).
 - Por qué: Ricardo nunca la usa; busca las canciones con el buscador o las ve en "Me gusta"/"Descargadas".
