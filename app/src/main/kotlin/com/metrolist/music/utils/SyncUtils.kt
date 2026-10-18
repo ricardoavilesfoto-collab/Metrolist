@@ -1474,11 +1474,14 @@ class SyncUtils @Inject constructor(
                     executeCleanupDuplicatePlaylists()
 
                     val localPlaylists = database.playlistEntitiesByNameAsc().toMutableList()
+                    // Unbookmark instead of toggling: a toggle re-bookmarks stale entries on every
+                    // other sync, making orphaned copies flicker back into the library as duplicates.
                     localPlaylists.filterNot { it.browseId in remoteIds }
                         .filterNot { it.browseId == null }
+                        .filter { it.bookmarkedAt != null }
                         .forEach { playlist ->
                             try {
-                                database.update(playlist.localToggleLike())
+                                database.update(playlist.copy(bookmarkedAt = null))
                                 delay(DB_OPERATION_DELAY_MS)
                             } catch (e: Exception) {
                                 Timber.e(e, "Failed to update playlist: ${playlist.id}")
