@@ -19,6 +19,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +39,7 @@ data class TransferResult(
     val found: Int,
     val total: Int,
     val missing: List<TransferTrack>,
+    val doubtful: List<TransferTrack>,
     val syncedToYouTube: Boolean,
 )
 
@@ -48,6 +50,11 @@ data class TransferProgress(
     val total: Int = 0,
     val results: List<TransferResult> = emptyList(),
 )
+
+private const val MAX_PER_PLAYLIST = 4900
+private const val ACCEPT_SCORE = 0.55
+private const val SURE_SCORE = 0.75
+private const val LIKE_PAUSE_MS = 300L
 
 object PlusTransferManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -95,7 +102,7 @@ object PlusTransferManager {
         syncUtils: SyncUtils,
         syncWithYouTube: Boolean,
     ): TransferResult {
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(4)
         val matches = coroutineScope {
             source.tracks.map { track ->
                 async {
@@ -110,7 +117,7 @@ object PlusTransferManager {
             }.awaitAll()
         }
 
-        val found = matches.filterNotNull().distinctBy { it.id }
+        val found = matches.mapNotNull { it?.item }.distinctBy { it.id }
         found.forEach { song ->
             runCatching { database.insert(song.toMediaMetadata()) }
                 .onFailure { Timber.w(it, "Could not insert ${song.id}") }
@@ -122,33 +129,24 @@ object PlusTransferManager {
             TransferDestination.LIKED_SONGS -> {
                 ids.forEach { id ->
                     val song = database.getSongByIdBlocking(id)?.song ?: return@forEach
-                    if (!song.liked) database.update(song.toggleLike(syncToYouTube = syncWithYouTube))
+                    if (song.liked) return@forEach
+                    database.update(song.toggleLike(syncToYouTube = false))
+                    // One at a time: thousands of parallel likes get the account rate-limited.
+                    if (syncWithYouTube) {
+                        YouTube.likeVideo(id, true).onFailure { Timber.w(it, "Could not like $id on YouTube Music") }
+                        delay(LIKE_PAUSE_MS)
+                    }
                 }
                 synced = syncWithYouTube
             }
             TransferDestination.NEW_PLAYLIST -> {
-                val browseId = if (syncWithYouTube) {
-                    runCatching { YouTube.createPlaylist(source.name) }
-                        .onFailure { Timber.w(it, "Could not create ${source.name} on YouTube Music") }
-                        .getOrNull()
-                        ?.takeIf { it.isNotBlank() }
-                } else {
-                    null
-                }
-                val entity = PlaylistEntity(
-                    name = source.name,
-                    browseId = browseId,
-                    bookmarkedAt = LocalDateTime.now(),
-                    isEditable = true,
-                    isAutoSync = browseId != null,
-                )
-                database.insert(entity)
-                database.playlist(entity.id).first()?.let { playlist ->
-                    database.addSongsToPlaylist(playlist, ids.map { it to null })
-                }
-                if (browseId != null) {
-                    syncUtils.scheduleAddToPlaylist(browseId, entity.id, ids)
-                    synced = true
+                // YouTube Music caps playlists at 5,000 songs: split evenly, keeping the original order.
+                val parts = (ids.size + MAX_PER_PLAYLIST - 1) / MAX_PER_PLAYLIST
+                val perPart = if (parts <= 1) ids.size else (ids.size + parts - 1) / parts
+                val chunks = if (parts <= 1) listOf(ids) else ids.chunked(perPart)
+                chunks.forEachIndexed { index, chunk ->
+                    val name = if (chunks.size == 1) source.name else "${source.name} (${index + 1}/${chunks.size})"
+                    if (savePlaylist(name, chunk, database, syncUtils, syncWithYouTube)) synced = true
                 }
             }
         }
@@ -159,49 +157,108 @@ object PlusTransferManager {
             found = matches.count { it != null },
             total = source.tracks.size,
             missing = source.tracks.filterIndexed { index, _ -> matches[index] == null },
+            doubtful = source.tracks.filterIndexed { index, _ -> matches[index]?.let { it.score < SURE_SCORE } == true },
             syncedToYouTube = synced,
         )
     }
 
-    private suspend fun findOnYouTubeMusic(track: TransferTrack): SongItem? {
-        val artist = track.artists.firstOrNull().orEmpty()
-        val candidates = search("${track.title} $artist".trim())
-            .ifEmpty { if (artist.isNotEmpty()) search(cleanTitle(track.title)) else emptyList() }
-        return candidates.withIndex().maxByOrNull { (index, item) -> score(track, item) - index * 0.2 }?.value
+    /** Returns true when the playlist was also created in the YouTube Music account. */
+    private suspend fun savePlaylist(
+        name: String,
+        ids: List<String>,
+        database: MusicDatabase,
+        syncUtils: SyncUtils,
+        syncWithYouTube: Boolean,
+    ): Boolean {
+        val browseId = if (syncWithYouTube) {
+            runCatching { YouTube.createPlaylist(name) }
+                .onFailure { Timber.w(it, "Could not create $name on YouTube Music") }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+        } else {
+            null
+        }
+        val entity = PlaylistEntity(
+            name = name,
+            browseId = browseId,
+            bookmarkedAt = LocalDateTime.now(),
+            isEditable = true,
+            isAutoSync = browseId != null,
+        )
+        database.insert(entity)
+        database.playlist(entity.id).first()?.let { playlist ->
+            database.addSongsToPlaylist(playlist, ids.map { it to null })
+        }
+        if (browseId == null) return false
+        syncUtils.scheduleAddToPlaylist(browseId, entity.id, ids)
+        return true
     }
 
-    private suspend fun search(query: String): List<SongItem> =
-        YouTube.search(query, YouTube.SearchFilter.FILTER_SONG).getOrNull()
+    private class Match(val item: SongItem, val score: Double)
+
+    /** Same criteria as herramientas/spotify-a-ytmusic: songs first, then videos if unsure. */
+    private suspend fun findOnYouTubeMusic(track: TransferTrack): Match? {
+        val query = "${track.title} ${track.artists.firstOrNull().orEmpty()}".trim()
+        var best: Match? = null
+        for (filter in listOf(YouTube.SearchFilter.FILTER_SONG, YouTube.SearchFilter.FILTER_VIDEO)) {
+            search(query, filter).forEach { item ->
+                val score = score(track, item)
+                if (score > (best?.score ?: 0.0)) best = Match(item, score)
+            }
+            if ((best?.score ?: 0.0) >= SURE_SCORE) break
+        }
+        return best?.takeIf { it.score >= ACCEPT_SCORE }
+    }
+
+    private suspend fun search(query: String, filter: YouTube.SearchFilter): List<SongItem> =
+        YouTube.search(query, filter).getOrNull()
             ?.items
             ?.filterIsInstance<SongItem>()
             ?.distinctBy { it.id }
-            ?.take(6)
+            ?.take(5)
             .orEmpty()
 
     private fun score(track: TransferTrack, item: SongItem): Double {
-        var score = 0.0
-        val wanted = normalize(cleanTitle(track.title))
-        val got = normalize(cleanTitle(item.title))
-        score += when {
-            wanted == got -> 4.0
-            wanted.isNotEmpty() && (got.contains(wanted) || wanted.contains(got)) -> 2.0
-            else -> 0.0
+        val titleScore = similarity(track.title, item.title)
+        val resultArtists = item.artists.joinToString(" ") { it.name }
+        var artistScore = track.artists.maxOfOrNull { similarity(it, resultArtists) } ?: 0.0
+        val normalizedArtists = normalize(resultArtists)
+        if (track.artists.any { normalize(it).let { a -> a.isNotEmpty() && normalizedArtists.contains(a) } }) {
+            artistScore = maxOf(artistScore, 0.9)
         }
-        val wantedArtists = track.artists.map(::normalize).filter { it.isNotEmpty() }
-        val gotArtists = item.artists.map { normalize(it.name) }
-        if (wantedArtists.any { w -> gotArtists.any { g -> g.contains(w) || w.contains(g) } }) score += 3.0
 
         val itemDuration = item.duration
-        if (track.durationSec != null && itemDuration != null) {
+        val durationScore = if (track.durationSec != null && itemDuration != null) {
             val diff = abs(track.durationSec - itemDuration)
-            score += when {
-                diff <= 3 -> 2.0
-                diff <= 10 -> 1.0
-                diff > 30 -> -2.0
-                else -> 0.0
-            }
+            if (diff <= 3) 1.0 else if (diff <= 10) 0.6 else 0.0
+        } else {
+            0.5
         }
-        return score
+        val score = 0.55 * titleScore + 0.35 * artistScore + 0.10 * durationScore
+        // A matching title by another artist is usually a cover or a different song.
+        return if (artistScore >= 0.5) score else score * 0.6
+    }
+
+    private fun similarity(a: String, b: String): Double {
+        val x = normalize(a)
+        val y = normalize(b)
+        if (x.isEmpty() || y.isEmpty()) return 0.0
+        if (x == y) return 1.0
+        return 1.0 - levenshtein(x, y).toDouble() / maxOf(x.length, y.length)
+    }
+
+    private fun levenshtein(a: String, b: String): Int {
+        var previous = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            val current = IntArray(b.length + 1)
+            current[0] = i
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                current[j] = minOf(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost)
+            }
+            previous = current
+        }
+        return previous[b.length]
     }
 
     private val bracketsRegex = Regex("""[(\[].*?[)\]]""")
@@ -209,11 +266,8 @@ object PlusTransferManager {
     private val accentsRegex = Regex("""\p{M}+""")
     private val symbolsRegex = Regex("""[^\p{L}\p{N} ]""")
 
-    private fun cleanTitle(title: String) =
-        title.replace(bracketsRegex, " ").replace(suffixRegex, "").trim().ifEmpty { title }
-
     private fun normalize(text: String) =
-        Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
+        Normalizer.normalize(text.replace(suffixRegex, "").replace(bracketsRegex, " ").lowercase(), Normalizer.Form.NFD)
             .replace(accentsRegex, "")
             .replace(symbolsRegex, " ")
             .split(' ')

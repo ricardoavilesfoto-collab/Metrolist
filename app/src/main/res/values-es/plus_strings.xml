@@ -54,6 +54,7 @@
     <string name="plus_transfer_not_found">No encontradas: %1$s</string>
     <string name="plus_transfer_link_error">No se pudo leer %1$s</string>
     <string name="plus_transfer_file_error">No se pudo leer el archivo. Necesita una columna con el título y otra con el artista.</string>
+    <string name="plus_transfer_doubtful">Revisa estas (se agregaron, pero quizá no sea la versión correcta): %1$s</string>
     <string name="plus_transfer_clear">Limpiar</string>
     <string name="plus_transfer_remove">Quitar</string>
     <string name="plus_island">Dynamic Island</string>

@@ -360,9 +360,7 @@ private fun ResultRow(result: TransferResult) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (result.missing.isNotEmpty()) {
-            val missing = result.missing.joinToString(" · ") { track ->
-                listOfNotNull(track.title, track.artists.firstOrNull()).joinToString(" – ")
-            }
+            val missing = result.missing.joinToString(" · ") { it.label() }
             Text(
                 text = stringResource(R.string.plus_transfer_not_found, missing),
                 style = MaterialTheme.typography.bodySmall,
@@ -371,12 +369,24 @@ private fun ResultRow(result: TransferResult) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp),
             )
-            if (!expanded && result.missing.size > 3) {
-                TextButton(onClick = { expanded = true }) { Text("…") }
-            }
+        }
+        if (result.doubtful.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.plus_transfer_doubtful, result.doubtful.joinToString(" · ") { it.label() }),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        if (!expanded && result.missing.size + result.doubtful.size > 3) {
+            TextButton(onClick = { expanded = true }) { Text("…") }
         }
     }
 }
+
+private fun TransferTrack.label() = listOfNotNull(title, artists.firstOrNull()).joinToString(" – ")
 
 private fun TransferPlatform.label() = when (this) {
     TransferPlatform.SPOTIFY -> "Spotify"

@@ -54,6 +54,7 @@
     <string name="plus_transfer_not_found">Not found: %1$s</string>
     <string name="plus_transfer_link_error">Could not read %1$s</string>
     <string name="plus_transfer_file_error">Could not read the file. It needs a song title column and an artist column.</string>
+    <string name="plus_transfer_doubtful">Check these (added, but may not be the right version): %1$s</string>
     <string name="plus_transfer_clear">Clear</string>
     <string name="plus_transfer_remove">Remove</string>
     <string name="plus_island">Dynamic Island</string>
