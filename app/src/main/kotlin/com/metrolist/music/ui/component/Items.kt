@@ -1949,8 +1949,10 @@ object Icon {
     fun Download(state: Int?) {
         when (state) {
             STATE_COMPLETED -> Icon(
-                painter = painterResource(R.drawable.offline),
+                // Metrolist Plus: Spotify-style green "downloaded" badge
+                painter = painterResource(R.drawable.plus_downloaded),
                 contentDescription = null,
+                tint = Color.Unspecified,
                 modifier = Modifier
                     .size(18.dp)
                     .padding(end = 2.dp)

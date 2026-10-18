@@ -15,6 +15,13 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Ícono verde de "descargado" (estilo Spotify)
+- Qué: el indicador de descarga completa (`Icon.Download` con `STATE_COMPLETED`) ahora es un círculo verde con flecha en lugar del ícono gris `offline`. Aplica en toda la app: playlists de la Biblioteca, álbumes y canciones.
+- Por qué: que se note de un vistazo qué playlists están descargadas.
+- Archivos: `res/drawable/plus_downloaded.xml` (propio); `ui/component/Items.kt` (`object Icon` → `fun Download`, rama `STATE_COMPLETED`: painter y `tint = Color.Unspecified`, marcado `// Metrolist Plus`).
+- Notas para sincronizar: si el original cambia `Icon.Download`, conservar el painter `plus_downloaded` sin tinte.
+- Verificado (sin cambios): la reproducción usa primero la descarga (`MusicService.createDataSourceFactory` revisa `downloadCache` antes que la red), aunque haya datos. Excepción del original: cambiar la calidad de audio mientras suena una canción borra la descarga de esa canción.
+
 ## 2026-10-18 — Reproductor estilo Spotify
 - Qué: controles del reproductor como Spotify: título grande + artistas, botón "me gusta" (círculo verde ✓ / círculo +), barra de progreso delgada con tiempos, fila aleatorio · anterior · play (círculo) · siguiente · temporizador (verde con punto cuando están activos). Interruptor en Ajustes → Apariencia → Reproductor ("Reproductor estilo Spotify", encendido por defecto).
 - Por qué: Ricardo quiere la interfaz de reproducción de Spotify.
