@@ -1843,7 +1843,7 @@ fun BottomSheetPlayer(
             }
         }
 
-        // Metrolist Plus: Spotify-style controls (toggle in Settings > Appearance > Player)
+        // Metrolist Plus: hybrid Metrolist + Spotify controls (toggle in Settings > Appearance > Player)
         val plusSpotifyPlayer = rememberPlusSpotifyPlayerEnabled()
         val activeControls: @Composable ColumnScope.(MediaMetadata) -> Unit =
             if (!plusSpotifyPlayer) {
@@ -1857,7 +1857,9 @@ fun BottomSheetPlayer(
                         isPlaying = effectiveIsPlaying,
                         isEnded = playbackState == STATE_ENDED,
                         isListenTogetherGuest = isListenTogetherGuest,
-                        sleepTimerActive = sleepTimerEnabled,
+                        sliderStyle = sliderStyle,
+                        squigglySlider = squigglySlider,
+                        sliderColors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
                         contentColor = TextBackgroundColor,
                         playButtonColor = textButtonColor,
                         playIconColor = iconButtonColor,
@@ -1886,13 +1888,7 @@ fun BottomSheetPlayer(
                                 playerConnection.togglePlayPause()
                             }
                         },
-                        onSleepTimerClick = {
-                            if (sleepTimerEnabled) {
-                                playerConnection.service.sleepTimer?.clear()
-                            } else {
-                                showSleepTimerDialog = true
-                            }
-                        },
+                        onOpenQueue = { queueSheetState.expandSoft() },
                         onOpenAlbum = {
                             val albumId = metadata.album?.id
                                 ?: currentSong?.album?.id

@@ -13,6 +13,11 @@
     <string name="plus_delete_folder_message">¿Eliminar \"%1$s\"? Las playlists que contiene vuelven a tu biblioteca. No se borra ninguna playlist.</string>
     <string name="plus_folder_empty">Esta carpeta está vacía. Abre el menú de una playlist y elige \"Mover a carpeta\".</string>
     <string name="plus_create">Crear</string>
-    <string name="plus_spotify_player">Reproductor estilo Spotify</string>
-    <string name="plus_spotify_player_description">Título grande, botón de me gusta, barra de progreso delgada y controles como Spotify</string>
+    <string name="plus_spotify_player">Reproductor Plus (estilo Spotify)</string>
+    <string name="plus_spotify_player_description">Controles compactos como Spotify, botón de cola y selector de salida de audio</string>
+    <string name="plus_share">Compartir</string>
+    <string name="plus_add_to_playlist">Agregar a playlist</string>
+    <string name="plus_output_this_phone">Este teléfono</string>
+    <string name="plus_output_headphones">Audífonos</string>
+    <string name="plus_output_choose">Elegir dónde se escucha</string>
 </resources>
