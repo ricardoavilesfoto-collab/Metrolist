@@ -57,11 +57,4 @@
     <string name="plus_transfer_doubtful">Check these (added, but may not be the right version): %1$s</string>
     <string name="plus_transfer_clear">Clear</string>
     <string name="plus_transfer_remove">Remove</string>
-    <string name="plus_island">Dynamic Island</string>
-    <string name="plus_island_description">Floating pill at the top while music plays in the background. Tap it for controls, tap again to open the app</string>
-    <string name="plus_island_permission">Allow Metrolist Plus to display over other apps to show the Dynamic Island</string>
-    <string name="plus_island_open">Open Metrolist Plus</string>
-    <string name="plus_island_accessibility_label">Metrolist Plus Dynamic Island</string>
-    <string name="plus_island_accessibility_description">Lets Metrolist Plus draw the Dynamic Island on top of the status bar, around the camera. It does not read the screen or anything you type.</string>
-    <string name="plus_island_accessibility_needed">Tap to turn on \"Metrolist Plus Dynamic Island\" in Accessibility so the island wraps the camera</string>
 </resources>

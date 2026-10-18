@@ -103,7 +103,6 @@ import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.plus.player.plusSpotifyPlayerSettingsItem
-import com.metrolist.music.plus.island.plusDynamicIslandSettingsItem // Metrolist Plus
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
@@ -1107,7 +1106,6 @@ fun AppearanceSettings(
             items =
                 listOf(
                     plusSpotifyPlayerSettingsItem(), // Metrolist Plus
-                    plusDynamicIslandSettingsItem(), // Metrolist Plus
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),
                         title = { Text(stringResource(R.string.new_player_design)) },
