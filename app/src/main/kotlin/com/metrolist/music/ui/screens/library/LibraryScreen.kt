@@ -35,7 +35,7 @@ fun LibraryScreen() {
             ChipsRow(
                 chips = listOf(
                     LibraryFilter.PLAYLISTS to stringResource(R.string.filter_playlists),
-                    LibraryFilter.SONGS to stringResource(R.string.filter_songs),
+                    // Metrolist Plus: no "Songs" chip; songs are found with search or in Liked/Downloaded.
                     LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
                     LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
                     LibraryFilter.PODCASTS to stringResource(R.string.filter_podcasts),

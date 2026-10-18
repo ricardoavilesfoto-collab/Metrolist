@@ -15,6 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Biblioteca sin la pestaña "Canciones"
+- Qué: se quitó el chip "Canciones" (`LibraryFilter.SONGS`) de la fila de pestañas de la Biblioteca. La pantalla `LibrarySongsScreen` y su rama en el `when` siguen existiendo (si la preferencia guardada era SONGS, se abre y su botón regresa a la Biblioteca).
+- Por qué: Ricardo nunca la usa; busca las canciones con el buscador o las ve en "Me gusta"/"Descargadas".
+- Archivo del original modificado: `ui/screens/library/LibraryScreen.kt` (línea del chip reemplazada por un comentario `// Metrolist Plus`).
+- Notas para sincronizar: si el original cambia la lista de chips, no volver a agregar el de canciones.
+
 ## 2026-10-18 — Biblioteca: listas al instante y sin cargar todas las canciones
 - Qué:
   - Vista principal de la Biblioteca (mezcla): `LibraryMixViewModel.songs`, que juntaba todas las canciones de la biblioteca y de las playlists guardadas (`songsInBookmarkedPlaylists`, con artistas y álbumes), ahora solo se carga mientras hay texto en el buscador. Antes se consultaba en cada visita y se repetía con cada escritura de la sincronización.
