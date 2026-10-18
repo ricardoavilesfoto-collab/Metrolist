@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/actualizar-local.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
