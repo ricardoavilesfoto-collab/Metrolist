@@ -15,6 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-17 — Compilación de Metrolist Plus en GitHub Actions
+- Qué: workflow propio que compila la variante GMS release como "Metrolist Plus" (`com.metrolist.music.plus`), la firma con la llave del fork y la publica en la release `metrolist-plus`.
+- Por qué: tener un APK instalable que conviva con el Metrolist oficial, sin necesitar Android Studio.
+- Archivos: `.github/workflows/metrolist-plus.yml`. Secrets del fork: `PLUS_KEYSTORE`, `PLUS_KEYSTORE_PASSWORD`, `PLUS_KEY_ALIAS`.
+- Notas para sincronizar: archivo exclusivo del fork. Usa los overrides `METROLIST_APPLICATION_ID` / `METROLIST_APP_NAME` de `app/build.gradle.kts`; si el original los renombra o elimina, hay que adaptar el workflow. Los workflows del original están deshabilitados en el fork (ajuste de GitHub, no de código).
+
 ## 2026-10-17 — Configuración inicial del fork
 - Qué: se agregaron `CLAUDE.md`, `MIS-CAMBIOS.md`, el comando `/sincronizar` y la actualización automática de la copia local al abrir Claude Code.
 - Por qué: mantener el fork al día con el original sin perder las modificaciones propias.
