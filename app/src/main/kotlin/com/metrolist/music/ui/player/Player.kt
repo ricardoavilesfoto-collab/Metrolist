@@ -168,6 +168,7 @@ import com.metrolist.music.plus.player.PlusLyricsPeekHeight
 import com.metrolist.music.plus.player.PlusLyricsSheet
 import com.metrolist.music.plus.player.PlusPlayerMenuButton
 import com.metrolist.music.plus.player.PlusSpotifyControls
+import com.metrolist.music.plus.player.rememberPlusPlayingFromRoute
 import com.metrolist.music.plus.player.rememberPlusSpotifyPlayerEnabled
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
@@ -2049,6 +2050,13 @@ fun BottomSheetPlayer(
                                         { PlusPlayerMenuButton(mediaMetadata, state, TextBackgroundColor) }
                                     } else {
                                         null
+                                    },
+                                    // Metrolist Plus: tap the playlist/album name to open it
+                                    onPlayingFromClick = rememberPlusPlayingFromRoute()?.let { route ->
+                                        {
+                                            navController.navigate(route)
+                                            state.collapseSoft()
+                                        }
                                     },
                                 )
                             }

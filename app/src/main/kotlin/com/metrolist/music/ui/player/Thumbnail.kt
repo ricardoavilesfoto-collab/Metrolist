@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -203,6 +204,7 @@ fun Thumbnail(
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
     headerAction: (@Composable () -> Unit)? = null, // Metrolist Plus: ⋮ at the top right
+    onPlayingFromClick: (() -> Unit)? = null, // Metrolist Plus: open the playlist/album being played
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -341,6 +343,7 @@ fun Thumbnail(
                         albumTitle = mediaMetadata?.album?.title,
                         textColor = textBackgroundColor,
                         action = headerAction,
+                        onPlayingFromClick = onPlayingFromClick,
                     )
                 }
                 
@@ -442,6 +445,7 @@ private fun ThumbnailHeader(
     textColor: Color,
     modifier: Modifier = Modifier,
     action: (@Composable () -> Unit)? = null,
+    onPlayingFromClick: (() -> Unit)? = null,
 ) {
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = RoomRole.NONE)
@@ -479,7 +483,9 @@ private fun ThumbnailHeader(
                     style = MaterialTheme.typography.titleMedium,
                     color = textColor.copy(alpha = 0.8f),
                     maxLines = 1,
-                    modifier = Modifier.basicMarquee()
+                    modifier = Modifier
+                        .then(if (onPlayingFromClick != null) Modifier.clickable(onClick = onPlayingFromClick) else Modifier) // Metrolist Plus
+                        .basicMarquee()
                 )
             }
         }

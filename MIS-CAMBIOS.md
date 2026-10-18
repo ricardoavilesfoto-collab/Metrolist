@@ -15,6 +15,15 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Tocar "Reproduciendo desde…" abre la playlist o el álbum
+- Qué: en el encabezado del reproductor (vertical), el nombre de la playlist/álbum que se está reproduciendo ahora se puede tocar y abre esa pantalla (el reproductor se minimiza). La cola solo guarda su nombre, así que se busca en la biblioteca: listas automáticas ("Me gusta", "Descargadas", "Subidas", "Mi top N", caché), luego playlists por nombre (prefiere las guardadas y usa la misma regla que la Biblioteca para elegir `local_playlist/` u `online_playlist/`), luego álbumes y artistas. Si no hay título de cola, abre el álbum de la canción. Si no se encuentra (playlists de YouTube no guardadas, radios, mixes), el nombre no se puede tocar.
+- Por qué: Ricardo esperaba que al tocar el nombre de la playlist lo llevara a ella, como en Spotify.
+- Archivos propios: `plus/player/PlayingFromRoute.kt` (`rememberPlusPlayingFromRoute`).
+- Archivos del original modificados (marcados `Metrolist Plus`):
+  - `ui/player/Thumbnail.kt`: parámetro `onPlayingFromClick` en `Thumbnail` y `ThumbnailHeader`; `.clickable` en el texto del nombre; import de `clickable`.
+  - `ui/player/Player.kt`: en la llamada vertical a `Thumbnail`, `onPlayingFromClick = rememberPlusPlayingFromRoute()?.let { … navController.navigate(route); state.collapseSoft() }`; import.
+- Notas para sincronizar: si el original cambia los títulos de cola de las listas automáticas o las rutas de navegación, actualizar el `when` y las rutas de `PlayingFromRoute.kt`.
+
 ## 2026-10-18 — Guardar una canción descargada como archivo .m4a
 - Qué: en el menú de una canción descargada (estado completo) aparece "Guardar como archivo de audio (M4A)". Copia la descarga desde la caché privada de ExoPlayer a un archivo temporal, la convierte con Media3 Transformer a un mp4 normal con AAC (si el stream ya era AAC solo se re-empaqueta, sin pérdida; si era opus/webm se re-codifica a 256 kbps) y la guarda con MediaStore en `Música/Metrolist/Artista - Título.m4a`. Avisa con Toasts; sigue aunque se cierre el menú. Solo Android 10+ (sin pedir permisos).
 - Por qué: Ricardo quiere usar canciones específicas que elige en videos de CapCut/Edits; las descargas normales están en la carpeta privada de la app y en formato de caché que ningún editor abre. Es en `.m4a` y no `.mp3` porque Android no trae codificador MP3.
