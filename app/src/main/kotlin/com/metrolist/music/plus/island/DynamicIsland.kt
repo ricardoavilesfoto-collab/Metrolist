@@ -406,7 +406,7 @@ class PlusDynamicIsland(
         lifecycleOwner = null
     }
 
-    private fun setCardShown(value: Boolean) {
+    private fun showCard(value: Boolean) {
         if (cardShown == value) return
         cardShown = value
         val view = root ?: return
@@ -546,7 +546,7 @@ class PlusDynamicIsland(
                 0 -> {
                     if (cardShown) {
                         morph.animateTo(0f, tween(160, easing = FastOutSlowInEasing))
-                        setCardShown(false)
+                        showCard(false)
                     }
                     appear.animateTo(0f, tween(260, easing = FastOutSlowInEasing))
                     root?.post { if (leaving) removeWindow() }
@@ -554,13 +554,13 @@ class PlusDynamicIsland(
                 1 -> {
                     if (cardShown) {
                         morph.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
-                        setCardShown(false)
+                        showCard(false)
                     }
                     appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow))
                 }
                 else -> {
                     appear.snapTo(1f)
-                    setCardShown(true)
+                    showCard(true)
                     morph.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
                 }
             }
