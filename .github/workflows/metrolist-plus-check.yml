@@ -41,24 +41,34 @@ jobs:
         with:
           cache-read-only: true
 
-      # app/build.gradle.kts firma el debug con ~/.android/debug.keystore, que no existe en el runner.
-      - name: Create debug keystore
+      # Llave fija de pruebas (secreto PLUS_DEBUG_KEYSTORE, PKCS12, alias androiddebugkey, contraseña android) para
+      # que cada APK de prueba se instale encima del anterior. Sin el secreto se crea una llave nueva en cada
+      # compilación y hay que desinstalar la app de prueba antes de instalar la siguiente.
+      - name: Prepare test signing key
+        env:
+          PLUS_DEBUG_KEYSTORE: ${{ secrets.PLUS_DEBUG_KEYSTORE }}
         run: |
-          mkdir -p ~/.android
-          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey \
-            -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          key="$RUNNER_TEMP/prueba.keystore"
+          if [ -n "$PLUS_DEBUG_KEYSTORE" ]; then
+            echo "$PLUS_DEBUG_KEYSTORE" | base64 -d > "$key"
+          else
+            keytool -genkeypair -keystore "$key" -storetype PKCS12 -storepass android -alias androiddebugkey \
+              -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Metrolist Plus Prueba"
+          fi
+          echo "METROLIST_DEBUG_KEYSTORE_PATH=$key" >> "$GITHUB_ENV"
 
+      # Otro applicationId: la prueba se instala junto a Metrolist Plus sin reemplazarla ni tocar sus datos.
       - name: Build debug APK
         run: |
           chmod +x gradlew
           ./gradlew --console=plain :app:assembleFossDebug --warning-mode summary
         env:
-          METROLIST_APPLICATION_ID: com.metrolist.music.plus
-          METROLIST_APP_NAME: Metrolist Plus
+          METROLIST_APPLICATION_ID: com.metrolist.music.plus.prueba
+          METROLIST_APP_NAME: Metrolist Plus Prueba
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
           name: MetrolistPlus-prueba
-          path: app/build/outputs/apk/**/debug/*.apk
+          path: app/build/outputs/apk/universalFoss/debug/*.apk
           retention-days: 7
