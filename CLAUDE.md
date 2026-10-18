@@ -39,9 +39,14 @@ Usa el comando `/sincronizar` (`.claude/skills/sincronizar/SKILL.md`).
 
 ## Si trabajas desde la nube (Claude Code en el celular o en claude.ai/code)
 
-- Ahí no hay Android SDK y la red bloquea su descarga: **no intentes `./gradlew`**. Sube tus commits a tu rama
-  `claude/...` y deja que GitHub compile. Revisa el resultado en la pestaña Actions del repo. El APK se publica
-  solo cuando el cambio llega a `ricardo` (con merge, nunca con force), y eso se hace cuando Ricardo lo aprueba.
+- Ahí no hay Android SDK y la red bloquea su descarga: **no intentes `./gradlew`**.
+- Ricardo quiere **una sola app** que se actualiza encima, sin versiones de prueba aparte. Cuando termines un
+  cambio, haz commit y push a tu rama `claude/...`. El workflow `metrolist-plus-integrar.yml` la junta sola con
+  `ricardo` y lanza la compilación que publica el APK. No crees workflows de "verificación" ni apps de prueba.
+- Antes de seguir trabajando en la misma sesión, trae lo último: `git pull origin ricardo`.
+- La integración automática **falla** en dos casos, y entonces avísale a Ricardo que lo integre Claude en la PC:
+  si hay conflictos con `ricardo`, o si tu rama cambia algo en `.github/workflows/`.
+- Para ver si compiló: pestaña Actions del repo, workflow "Metrolist Plus" (el APK sale en releases/latest).
 - Si `git push` responde **403**, la app de GitHub de Claude no tiene permiso de escritura en el repo. Reintentar no
   sirve. Pídele a Ricardo que abra https://github.com/apps/claude → Configure → cuenta `ricardoavilesfoto-collab` →
   agregar `Metrolist` en "Repository access" → Save. Mientras tanto, no cierres la sesión: el commit se pierde.
