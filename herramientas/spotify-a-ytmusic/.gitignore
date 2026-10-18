@@ -1,0 +1,9 @@
+# Datos privados: dan acceso a tu cuenta o contienen tu música
+browser.json
+encabezados.txt
+progreso.json
+progreso.tmp
+reporte.csv
+*.csv
+.venv/
+__pycache__/

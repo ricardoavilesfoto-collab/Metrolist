@@ -15,6 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Trabajar desde el celular (nube) y herramienta de Spotify en el repo
+- Qué: la herramienta Spotify→YouTube Music (`spotify_a_ytmusic.py`, `INSTRUCCIONES.md` y su `.gitignore`, que excluye los archivos privados) se copió a `herramientas/spotify-a-ytmusic/`. Se sigue ejecutando en la PC (`D:\Herramientas\spotify-a-ytmusic\`). `CLAUDE.md` ahora explica cómo trabajar desde la nube (no compilar ahí, subir a `claude/...` y que compile GitHub; qué hacer si el push da 403) y dónde vive la herramienta.
+- Por qué: Claude Code desde el celular no veía el script (estaba solo en la PC), no podía compilar (no hay Android SDK en la nube) y no tenía permiso para subir a GitHub.
+- Archivos: `herramientas/spotify-a-ytmusic/*` (propios), `CLAUDE.md`, `.github/workflows/metrolist-plus.yml` (`herramientas/**` en `paths-ignore`, para no publicar un APK al cambiar el script).
+- Notas para sincronizar: nada del original se toca.
+
 ## 2026-10-18 — Eliminar descargas de una playlist sin borrar las compartidas con otras playlists descargadas
 - Qué: al eliminar las descargas de una playlist se conservan las canciones que también están en otra playlist de la Biblioteca (o en "Me gusta") que esté descargada. Una playlist Q cuenta como descargada si ≥80 % de sus canciones que NO están en la playlist que se borra tienen descarga (evita contar las bajadas solo por esa playlist). Nuestro diálogo muestra cuántas se eliminan y cuántas se conservan; los botones del original muestran un aviso con las conservadas.
 - Por qué: Metrolist descarga por canción (un archivo por canción); antes, borrar una playlist borraba también canciones de otras playlists descargadas.
