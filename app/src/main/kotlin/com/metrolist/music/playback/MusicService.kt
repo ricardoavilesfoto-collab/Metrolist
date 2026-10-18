@@ -100,6 +100,7 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.lastfm.LastFM
 import com.metrolist.music.MainActivity
+import com.metrolist.music.plus.island.PlusDynamicIsland // Metrolist Plus
 import com.metrolist.music.R
 import com.metrolist.music.constants.AddToPlaylistPosition
 import com.metrolist.music.constants.AddToPlaylistPositionKey
@@ -398,6 +399,7 @@ class MusicService :
     lateinit var downloadCache: Cache
 
     lateinit var player: ExoPlayer
+    private var plusDynamicIsland: PlusDynamicIsland? = null // Metrolist Plus
         private set
     private var secondaryPlayer: ExoPlayer? = null
     private var fadingPlayer: ExoPlayer? = null
@@ -719,6 +721,8 @@ class MusicService :
                     ),
                 ).setBitmapLoader(CoilBitmapLoader(this, scope))
                 .build()
+        // Metrolist Plus: Dynamic Island
+        plusDynamicIsland = PlusDynamicIsland(this, player, scope).also { it.start() }
         player.repeatMode = startupPrefs!![RepeatModeKey] ?: REPEAT_MODE_OFF
 
         if (startupPrefs!![RememberShuffleAndRepeatKey] ?: true) {
@@ -4270,6 +4274,8 @@ class MusicService :
 
     override fun onDestroy() {
         isRunning = false
+        plusDynamicIsland?.release() // Metrolist Plus
+        plusDynamicIsland = null
 
         if (!::player.isInitialized) {
             try {

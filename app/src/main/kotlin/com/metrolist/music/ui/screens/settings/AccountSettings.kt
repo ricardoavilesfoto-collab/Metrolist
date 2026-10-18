@@ -63,6 +63,8 @@ import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.UseLoginForBrowse
 import com.metrolist.music.constants.VisitorDataKey
 import com.metrolist.music.constants.YtmSyncKey
+import com.metrolist.music.plus.transfer.PlusTransferRoute // Metrolist Plus
+import com.metrolist.music.plus.transfer.plusTransferAccountItem // Metrolist Plus
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.InfoLabel
 import com.metrolist.music.ui.component.Material3SettingsGroup
@@ -389,6 +391,13 @@ fun AccountSettings(
 
         Material3SettingsGroup(
             items = buildList {
+                // Metrolist Plus: transferir playlists desde Spotify y otras apps
+                add(
+                    plusTransferAccountItem {
+                        onClose()
+                        navController.navigate(PlusTransferRoute)
+                    }
+                )
                 add(
                     Material3SettingsItem(
                         title = { Text(stringResource(R.string.integrations)) },
