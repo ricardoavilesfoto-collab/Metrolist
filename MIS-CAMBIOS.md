@@ -15,6 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Integración automática del trabajo hecho desde la nube
+- Qué: `.github/workflows/metrolist-plus-integrar.yml` hace merge en `ricardo` de cada push a una rama `claude/**` y lanza `metrolist-plus.yml`, que compila y publica el APK. Si hay conflictos, o si la rama toca `.github/workflows/` (GITHUB_TOKEN no puede subir eso), falla sin tocar `ricardo`, y Claude en la PC lo integra a mano. Se eliminó `metrolist-plus-check.yml`, que compilaba una app de prueba aparte. La guía para la nube está en `CLAUDE.md`.
+- Por qué: Ricardo quiere una sola app que se actualice encima ("Actualizar"), sin apps de prueba ni volver a iniciar sesión, haga el cambio desde la PC o desde el celular.
+- Archivos: `.github/workflows/metrolist-plus-integrar.yml` (propio), `CLAUDE.md`.
+- Notas para sincronizar: nada del original se toca. Respaldo previo: etiqueta `respaldo-2026-10-18-antes-celular`.
+
 ## 2026-10-18 — Transferir música (Spotify, Deezer, CSV) y Dynamic Island
 - Qué (1): opción "Transferir música" en el menú de la foto de perfil (arriba de "Integraciones"). Abre una pantalla donde se pegan enlaces de playlists/álbumes/canciones de Spotify o Deezer, o se eligen archivos CSV (Exportify para toda la biblioteca de Spotify incl. "Me gusta"; TuneMyMusic/Soundiiz para Apple Music, Tidal, Amazon, etc.; una columna "Playlist name" divide el archivo en varias playlists). Cada fuente va a "Playlist nueva" o a "Me gusta". Cada canción se busca en YouTube Music (elige el mejor resultado por título, artista y duración), se guarda en la biblioteca y, si hay sesión y sincronización activa, también se crea en la cuenta de YouTube Music (`YouTube.createPlaylist` + `SyncUtils.scheduleAddToPlaylist`, o `toggleLike` para "Me gusta"). Muestra progreso y las canciones no encontradas; sigue en segundo plano aunque se salga de la pantalla.
 - Por qué: reemplaza el script externo que Ricardo tenía en pausa; la transferencia ahora es parte de la app.
@@ -29,6 +35,7 @@ Formato de cada entrada (la más reciente arriba):
   - `ui/screens/settings/AppearanceSettings.kt`: `plusDynamicIslandSettingsItem()` después de `plusSpotifyPlayerSettingsItem()`.
   - `AndroidManifest.xml`: permiso `SYSTEM_ALERT_WINDOW`.
 - Notas para sincronizar: si el original cambia la construcción de `mediaSession` u `onDestroy` de `MusicService`, conservar las dos llamadas de la isla. Si cambia el grupo de opciones de `AccountSettings`, mantener el elemento de transferir.
+
 ## 2026-10-18 — Trabajar desde el celular (nube) y herramienta de Spotify en el repo
 - Qué: la herramienta Spotify→YouTube Music (`spotify_a_ytmusic.py`, `INSTRUCCIONES.md` y su `.gitignore`, que excluye los archivos privados) se copió a `herramientas/spotify-a-ytmusic/`. Se sigue ejecutando en la PC (`D:\Herramientas\spotify-a-ytmusic\`). `CLAUDE.md` ahora explica cómo trabajar desde la nube (no compilar ahí, subir a `claude/...` y que compile GitHub; qué hacer si el push da 403) y dónde vive la herramienta.
 - Por qué: Claude Code desde el celular no veía el script (estaba solo en la PC), no podía compilar (no hay Android SDK en la nube) y no tenía permiso para subir a GitHub.
