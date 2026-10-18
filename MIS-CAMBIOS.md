@@ -15,6 +15,14 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Eliminar descargas de una playlist sin borrar las compartidas con otras playlists descargadas
+- Qué: al eliminar las descargas de una playlist se conservan las canciones que también están en otra playlist de la Biblioteca (o en "Me gusta") que esté descargada. Una playlist Q cuenta como descargada si ≥80 % de sus canciones que NO están en la playlist que se borra tienen descarga (evita contar las bajadas solo por esa playlist). Nuestro diálogo muestra cuántas se eliminan y cuántas se conservan; los botones del original muestran un aviso con las conservadas.
+- Por qué: Metrolist descarga por canción (un archivo por canción); antes, borrar una playlist borraba también canciones de otras playlists descargadas.
+- Archivos propios: `plus/library/PlaylistDownloadRemoval.kt` (`planPlaylistDownloadRemoval`, `removeDownloads`, `CoroutineScope.removePlaylistDownloadsKeepingShared`; lee `playlist_song_map` + `playlist.bookmarkedAt` y `song.liked` con `openHelper.readableDatabase`); `plus/library/LibraryOrganizationUi.kt` (diálogo con el plan); textos `plus_remove_downloads_plan/_nothing/_kept_toast`.
+- Archivos del original modificados (marcados `// Metrolist Plus`): el botón OK del diálogo de eliminar descargas en `ui/menu/PlaylistMenu.kt`, `ui/screens/playlist/LocalPlaylistScreen.kt` (se conserva su `clearPlaylist` para no editables) y `ui/menu/YouTubePlaylistMenu.kt` ahora llaman a `coroutineScope.removePlaylistDownloadsKeepingShared(...)` en lugar de `songs.forEach { DownloadService.sendRemoveDownload(...) }`.
+- No cambian: borrar una canción suelta (`LocalPlaylistScreen` ~línea 1406) ni "Descargadas"/"Me gusta" (`AutoPlaylistScreen`).
+- Notas para sincronizar: si el original cambia esos diálogos, mantener la llamada a `removePlaylistDownloadsKeepingShared`. Si cambia el nombre de las tablas/columnas `playlist_song_map(playlistId, songId)`, `playlist(id, bookmarkedAt)` o `song(id, liked)`, actualizar las consultas.
+
 ## 2026-10-18 — Biblioteca más rápida y "Eliminar descargas" por playlist
 - Qué (1): la sincronización de playlists que se dispara al entrar a Biblioteca → Playlists ahora corre como máximo cada 15 minutos (antes en cada entrada, descargando la lista de canciones de las ~136 playlists y ocupando la base de datos; las playlists tardaban ~10 s en aparecer). La sincronización completa al abrir la app (`tryAutoSync`) no cambia.
 - Qué (2): botón rápido "Eliminar descargas" arriba del menú ⋮ de cada playlist en la Biblioteca, visible si al menos una canción tiene descarga (completa, en curso o pausada). El menú original solo permitía borrar si la playlist estaba descargada al 100%.

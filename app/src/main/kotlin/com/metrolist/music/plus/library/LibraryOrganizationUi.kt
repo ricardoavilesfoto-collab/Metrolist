@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,11 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.R
-import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Playlist
@@ -74,7 +73,7 @@ sealed interface FolderNameRequest {
     data class Rename(val folder: PlaylistFolder) : FolderNameRequest
 }
 
-data class RemoveDownloadsRequest(val playlistName: String, val songIds: List<String>)
+data class RemoveDownloadsRequest(val playlistName: String, val playlistId: String, val songIds: List<String>)
 
 /** Dialogs live at screen level so they survive the bottom sheet that opened them being dismissed. */
 @Stable
@@ -292,7 +291,7 @@ fun PlusPlaylistQuickActions(
                         },
                         text = stringResource(R.string.plus_remove_downloads),
                         onClick = {
-                            dialogs.removeDownloads = RemoveDownloadsRequest(playlist.playlist.name, downloadedIds)
+                            dialogs.removeDownloads = RemoveDownloadsRequest(playlist.playlist.name, playlist.id, songIds)
                             onDismiss()
                         },
                     ),
@@ -516,20 +515,37 @@ fun PlusLibraryDialogs(
     }
 
     state.removeDownloads?.let { request ->
+        val database = LocalDatabase.current
+        val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
+        // Computed once when the dialog opens: which downloads can go and which other playlists still need.
+        val plan by produceState<RemovalPlan?>(null, request) {
+            value = planPlaylistDownloadRemoval(database, downloads, request.songIds, request.playlistId)
+        }
         AlertDialog(
             onDismissRequest = { state.removeDownloads = null },
             icon = { Icon(painterResource(R.drawable.delete), contentDescription = null) },
             title = { Text(stringResource(R.string.plus_remove_downloads)) },
             text = {
-                Text(stringResource(R.string.plus_remove_downloads_message, request.songIds.size, request.playlistName))
+                val currentPlan = plan
+                when {
+                    currentPlan == null -> CircularProgressIndicator()
+                    currentPlan.toRemove.isEmpty() -> Text(stringResource(R.string.plus_remove_downloads_nothing))
+                    else -> Text(
+                        stringResource(
+                            R.string.plus_remove_downloads_plan,
+                            currentPlan.toRemove.size,
+                            request.playlistName,
+                            currentPlan.kept.size,
+                        ),
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
+                    enabled = plan?.toRemove?.isNotEmpty() == true,
                     onClick = {
                         state.removeDownloads = null
-                        request.songIds.forEach { songId ->
-                            DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, songId, false)
-                        }
+                        plan?.let { removeDownloads(context, it.toRemove) }
                     },
                 ) {
                     Text(stringResource(R.string.plus_remove_downloads))

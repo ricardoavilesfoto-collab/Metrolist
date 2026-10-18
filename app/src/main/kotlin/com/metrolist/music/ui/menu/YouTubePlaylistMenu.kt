@@ -74,6 +74,7 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
+import com.metrolist.music.plus.library.removePlaylistDownloadsKeepingShared
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.ListDialog
@@ -296,14 +297,14 @@ fun YouTubePlaylistMenu(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
-                        songs.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.id,
-                                false,
-                            )
-                        }
+                        // Metrolist Plus: keep songs that other downloaded playlists still need
+                        coroutineScope.removePlaylistDownloadsKeepingShared(
+                            context,
+                            database,
+                            downloadUtil.downloads.value,
+                            songs.map { it.id },
+                            dbPlaylist?.playlist?.id,
+                        )
                     },
                 ) {
                     Text(text = stringResource(android.R.string.ok))

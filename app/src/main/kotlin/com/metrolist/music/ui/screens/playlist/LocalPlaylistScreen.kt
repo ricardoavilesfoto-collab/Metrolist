@@ -121,6 +121,7 @@ import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.ExoDownloadService
+import com.metrolist.music.plus.library.removePlaylistDownloadsKeepingShared
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.DefaultDialog
@@ -348,18 +349,18 @@ fun LocalPlaylistScreen(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
+                        // Metrolist Plus: keep songs that other downloaded playlists still need
+                        coroutineScope.removePlaylistDownloadsKeepingShared(
+                            context,
+                            database,
+                            downloadUtil.downloads.value,
+                            songs.map { it.song.id },
+                            playlist?.id,
+                        )
                         if (!editable) {
                             database.transaction {
                                 playlist?.id?.let { clearPlaylist(it) }
                             }
-                        }
-                        songs.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.song.id,
-                                false,
-                            )
                         }
                     },
                 ) {

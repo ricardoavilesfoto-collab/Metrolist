@@ -25,6 +25,8 @@
     <string name="plus_up_next">Up next</string>
     <string name="plus_clear_queue">Clear queue</string>
     <string name="plus_remove_downloads">Remove downloads</string>
-    <string name="plus_remove_downloads_message">Remove the %1$d downloaded songs of \"%2$s\"? They will still be available online.</string>
+    <string name="plus_remove_downloads_plan">%1$d downloads of \"%2$s\" will be removed. %3$d are kept because they are also in other downloaded playlists. Removed songs are still available online.</string>
+    <string name="plus_remove_downloads_nothing">All the downloaded songs of this playlist are also in other downloaded playlists, so there is nothing to remove.</string>
+    <string name="plus_remove_downloads_kept_toast">Kept %1$d songs that are also in other downloaded playlists</string>
     <string name="plus_swipe_song_to_add">Swipe a song right to add it to the queue, or left to play it next</string>
 </resources>
