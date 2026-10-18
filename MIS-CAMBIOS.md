@@ -15,6 +15,18 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Biblioteca: listas al instante y sin cargar todas las canciones
+- Qué:
+  - Vista principal de la Biblioteca (mezcla): `LibraryMixViewModel.songs`, que juntaba todas las canciones de la biblioteca y de las playlists guardadas (`songsInBookmarkedPlaylists`, con artistas y álbumes), ahora solo se carga mientras hay texto en el buscador. Antes se consultaba en cada visita y se repetía con cada escritura de la sincronización.
+  - Las listas de la Biblioteca (mezcla: playlists, álbumes, artistas; pantallas de playlists y de álbumes) empiezan con la última lista vista en esta sesión (`PlusLibraryListCache`, en memoria) en lugar de vacías, así aparecen al instante al volver.
+  - Álbumes y artistas sincronizan al entrar como máximo cada 15 minutos (`PlusLibrarySyncThrottle.shouldSync("albums" / "artists")`), igual que las playlists.
+- Por qué: Ricardo notaba que playlists y álbumes seguían tardando en aparecer al entrar a la Biblioteca.
+- Archivos propios: `plus/library/LibraryListCache.kt` (nuevo), `plus/library/LibrarySyncThrottle.kt` (ahora con clave por pantalla).
+- Archivos del original modificados (marcados `// Metrolist Plus`):
+  - `viewmodels/LibraryViewModels.kt`: `.rememberedAs("…")` + `stateIn(…, PlusLibraryListCache.get("…"))` en `allAlbums`, `allPlaylists` y en `artists`/`albums`/`playlists` de la mezcla; `songs` de la mezcla envuelto en `_searchQuery.map { it.isNotBlank() }…flatMapLatest { if (!searching) flowOf(emptyList()) else … }`.
+  - `ui/screens/library/LibraryAlbumsScreen.kt` y `LibraryArtistsScreen.kt`: `if (ytmSync && PlusLibrarySyncThrottle.shouldSync(…))` en el `LaunchedEffect(Unit)`.
+- Notas para sincronizar: si el original cambia esos `stateIn` o la carga de canciones de la mezcla, conservar la idea (lista inicial desde la caché; canciones solo al buscar).
+
 ## 2026-10-18 — Se quitó la Dynamic Island
 - Qué: se eliminó la Dynamic Island propia (píldora flotante y servicio de accesibilidad). `MusicService.kt`, `AppearanceSettings.kt` y `AndroidManifest.xml` volvieron a quedar como en el original; se borraron `plus/island/*`, `res/xml/plus_island_accessibility.xml`, `res/drawable/plus_island.xml` y los textos `plus_island*`.
 - Por qué: en el vivo X100 Pro de Ricardo (OriginOS 6) la isla del sistema (Origin Island) solo muestra apps de música de una lista fija de vivo (por nombre de paquete, p. ej. `com.spotify.music`). Una píldora dibujada encima no puede mover los íconos del sistema ni coordinarse con la isla del sistema (se encimaba con Google Maps). Ricardo prefirió quitarla. La única forma de entrar a la Origin Island sería instalar la app con el paquete de una app de esa lista; quedó descartado.

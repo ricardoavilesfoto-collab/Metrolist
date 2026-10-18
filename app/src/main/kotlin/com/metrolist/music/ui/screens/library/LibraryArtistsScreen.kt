@@ -75,6 +75,7 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LibraryArtistsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.metrolist.music.plus.library.PlusLibrarySyncThrottle // Metrolist Plus
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +128,7 @@ fun LibraryArtistsScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (ytmSync) {
+        if (ytmSync && PlusLibrarySyncThrottle.shouldSync("artists")) { // Metrolist Plus
             withContext(Dispatchers.IO) {
                 viewModel.sync()
             }

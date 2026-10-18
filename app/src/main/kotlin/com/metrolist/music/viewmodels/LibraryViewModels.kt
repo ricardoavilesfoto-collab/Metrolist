@@ -64,8 +64,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import com.metrolist.music.plus.library.PlusLibraryListCache // Metrolist Plus
+import com.metrolist.music.plus.library.PlusLibraryListCache.rememberedAs // Metrolist Plus
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
@@ -234,7 +237,8 @@ constructor(
                     AlbumFilter.LIBRARY -> database.albums(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                     AlbumFilter.UPLOADED -> database.albumsUploaded(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                 }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }.rememberedAs("albums") // Metrolist Plus: shown at once when coming back
+            .stateIn(viewModelScope, SharingStarted.Lazily, PlusLibraryListCache.get("albums"))
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedAlbums() }
@@ -292,7 +296,8 @@ constructor(
             }.distinctUntilChanged()
             .flatMapLatest { (sortType, descending, hideYoutubeShorts) ->
                 database.playlists(sortType, descending).map { it.filterYoutubeShorts(hideYoutubeShorts) }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }.rememberedAs("playlists") // Metrolist Plus: shown at once when coming back
+            .stateIn(viewModelScope, SharingStarted.Lazily, PlusLibraryListCache.get("playlists"))
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncSavedPlaylists() }
@@ -378,14 +383,19 @@ constructor(
             .artistsBookmarked(
                 ArtistSortType.CREATE_DATE,
                 true,
-            ).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            ).rememberedAs("mix_artists") // Metrolist Plus: shown at once when coming back
+            .stateIn(viewModelScope, SharingStarted.Lazily, PlusLibraryListCache.get("mix_artists"))
     var albums = context.dataStore.data
         .map { it[HideExplicitKey] ?: false }
         .distinctUntilChanged()
         .flatMapLatest { hideExplicit ->
             database.albumsLiked(AlbumSortType.CREATE_DATE, true).map { it.filterExplicitAlbums(hideExplicit) }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    var songs = context.dataStore.data
+        }.rememberedAs("mix_albums") // Metrolist Plus: shown at once when coming back
+        .stateIn(viewModelScope, SharingStarted.Lazily, PlusLibraryListCache.get("mix_albums"))
+    // Metrolist Plus: every song of the library and of the saved playlists is only needed to search. Loading them on
+    // each visit (and again on every sync write) made the Library slow, so they load only while there is a query.
+    var songs = _searchQuery.map { it.isNotBlank() }.distinctUntilChanged().flatMapLatest { searching ->
+        if (!searching) flowOf(emptyList()) else context.dataStore.data
         .map { Triple(it[HideExplicitKey] ?: false, it[HideVideoSongsKey] ?: false, it[HideYoutubeShortsKey] ?: false) }
         .distinctUntilChanged()
         .flatMapLatest { (hideExplicit, hideVideoSongs, _) ->
@@ -398,13 +408,15 @@ constructor(
                     .filterExplicit(hideExplicit)
                     .filterVideoSongs(hideVideoSongs)
             }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     var playlists = context.dataStore.data
         .map { it[HideYoutubeShortsKey] ?: false }
         .distinctUntilChanged()
         .flatMapLatest { hideYoutubeShorts ->
             database.playlists(PlaylistSortType.CREATE_DATE, true).map { it.filterYoutubeShorts(hideYoutubeShorts) }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.rememberedAs("mix_playlists") // Metrolist Plus: shown at once when coming back
+        .stateIn(viewModelScope, SharingStarted.Lazily, PlusLibraryListCache.get("mix_playlists"))
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
