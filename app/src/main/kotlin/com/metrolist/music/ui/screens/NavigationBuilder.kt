@@ -388,6 +388,11 @@ fun NavGraphBuilder.navigationBuilder(
         IntegrationScreen(navController)
     }
 
+    // Metrolist Plus
+    composable(com.metrolist.music.plus.transfer.PlusTransferRoute) {
+        com.metrolist.music.plus.transfer.PlusTransferScreen(navController)
+    }
+
     composable("settings/integrations/discord") {
         DiscordSettings(navController)
     }
