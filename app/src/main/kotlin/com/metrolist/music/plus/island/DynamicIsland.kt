@@ -348,7 +348,7 @@ class PlusDynamicIsland(
         lifecycleOwner = null
     }
 
-    private fun setExpanded(value: Boolean) {
+    private fun changeExpanded(value: Boolean) {
         if (expanded == value) return
         expanded = value
         val view = root ?: return
@@ -436,7 +436,7 @@ class PlusDynamicIsland(
 
     private fun openApp() {
         // The window goes away in onStart() when the app comes to the front.
-        setExpanded(false)
+        changeExpanded(false)
         runCatching {
             context.startActivity(
                 Intent(context, MainActivity::class.java).addFlags(
@@ -461,7 +461,7 @@ class PlusDynamicIsland(
         LaunchedEffect(expanded, isPlaying) {
             if (expanded) {
                 delay(AUTO_COLLAPSE_MS)
-                setExpanded(false)
+                changeExpanded(false)
                 update()
             }
         }
@@ -481,7 +481,7 @@ class PlusDynamicIsland(
                     .clip(RoundedCornerShape(if (isExpanded) 32.dp else 50.dp))
                     .background(Color.Black)
                     .combinedClickable(
-                        onClick = { if (isExpanded) openApp() else setExpanded(true) },
+                        onClick = { if (isExpanded) openApp() else changeExpanded(true) },
                         onLongClick = {
                             // Hide until the next song.
                             hiddenForMediaId = player.currentMediaItem?.mediaId
@@ -633,7 +633,7 @@ class PlusDynamicIsland(
     private inner class IslandRoot(context: Context) : FrameLayout(context) {
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
             if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
-                if (expanded) post { setExpanded(false) }
+                if (expanded) post { changeExpanded(false) }
                 return false
             }
             return super.dispatchTouchEvent(event)
