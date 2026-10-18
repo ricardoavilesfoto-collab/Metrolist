@@ -20,4 +20,9 @@
     <string name="plus_output_this_phone">This phone</string>
     <string name="plus_output_headphones">Headphones</string>
     <string name="plus_output_choose">Choose where audio plays</string>
+    <string name="plus_next_in_queue">Next in queue</string>
+    <string name="plus_next_from">Next from: %1$s</string>
+    <string name="plus_up_next">Up next</string>
+    <string name="plus_clear_queue">Clear queue</string>
+    <string name="plus_swipe_song_to_add">Swipe a song right to add it to the queue, or left to play it next</string>
 </resources>

@@ -194,6 +194,9 @@ import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.toMediaMetadata
+import com.metrolist.music.plus.queue.addToUserQueue
+import com.metrolist.music.plus.queue.markedAsUserQueued
+import com.metrolist.music.plus.queue.upcomingUserQueue
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
@@ -1773,6 +1776,9 @@ class MusicService :
             return
         }
 
+        // Metrolist Plus: keep the songs the user queued when another playlist starts (like Spotify)
+        val pendingUserQueue = if (restoringQueue) emptyList() else player.upcomingUserQueue()
+
         currentQueue = queue
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
@@ -1831,6 +1837,9 @@ class MusicService :
                 val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                 applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
             }
+
+            // Metrolist Plus
+            if (pendingUserQueue.isNotEmpty()) player.addToUserQueue(pendingUserQueue)
         }
     }
 
@@ -2059,7 +2068,8 @@ class MusicService :
         val shuffleEnabled = player.shuffleModeEnabled
 
         // Insert items immediately after the current item in the window/index space
-        player.addMediaItems(insertIndex, items)
+        // Metrolist Plus: marked as user queue so they show under "Next in queue"
+        player.addMediaItems(insertIndex, items.map { it.markedAsUserQueued() })
         player.prepare()
 
         if (shuffleEnabled) {
@@ -2138,11 +2148,15 @@ class MusicService :
             }
         }
 
-        player.addMediaItems(items)
-        if (player.shuffleModeEnabled) {
-            val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-            applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+        if (player.mediaItemCount == 0) {
+            player.addMediaItems(items)
+            player.prepare()
+            return
         }
+
+        // Metrolist Plus: Spotify-style queue — goes after the songs the user already queued,
+        // ahead of the rest of the playlist (instead of at the very end).
+        player.addToUserQueue(items)
         player.prepare()
     }
 

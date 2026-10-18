@@ -511,7 +511,7 @@ fun SongListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val artistNameAliases = LocalArtistNameAliases.current
-    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true) // Metrolist Plus: on by default
 
     val content: @Composable () -> Unit = {
          ListItem(
@@ -1151,7 +1151,7 @@ fun YouTubeListItem(
         }
     },
 ) {
-    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true) // Metrolist Plus: on by default
     val artistNameAliases = LocalArtistNameAliases.current
     val artistSeparator = " ${stringResource(R.string.and)} "
 
@@ -1839,16 +1839,17 @@ fun SwipeToSongBox(
                 orientation = Orientation.Horizontal,
                 state = dragState,
                 onDragStopped = {
+                    // Metrolist Plus: Spotify gesture — swipe right adds to the queue, left plays next
                     when {
                         offset.floatValue >= threshold -> {
-                            player?.playNext(listOf(mediaItem))
-                            Toast.makeText(ctx, R.string.play_next, Toast.LENGTH_SHORT).show()
+                            player?.addToQueue(listOf(mediaItem))
+                            Toast.makeText(ctx, R.string.add_to_queue, Toast.LENGTH_SHORT).show()
                             reset(offset, scope)
                         }
 
                         offset.floatValue <= -threshold -> {
-                            player?.addToQueue(listOf(mediaItem))
-                            Toast.makeText(ctx, R.string.add_to_queue, Toast.LENGTH_SHORT).show()
+                            player?.playNext(listOf(mediaItem))
+                            Toast.makeText(ctx, R.string.play_next, Toast.LENGTH_SHORT).show()
                             reset(offset, scope)
                         }
 
@@ -1860,15 +1861,15 @@ fun SwipeToSongBox(
         if (offset.floatValue != 0f) {
             val (iconRes, bg, tint, align) = if (offset.floatValue > 0)
                 Quadruple(
-                    R.drawable.playlist_play,
-                    MaterialTheme.colorScheme.secondary,
-                    MaterialTheme.colorScheme.onSecondary,
-                    Alignment.CenterStart
-                ) else
-                Quadruple(
                     R.drawable.queue_music,
                     MaterialTheme.colorScheme.primary,
                     MaterialTheme.colorScheme.onPrimary,
+                    Alignment.CenterStart
+                ) else
+                Quadruple(
+                    R.drawable.playlist_play,
+                    MaterialTheme.colorScheme.secondary,
+                    MaterialTheme.colorScheme.onSecondary,
                     Alignment.CenterEnd
                 )
 

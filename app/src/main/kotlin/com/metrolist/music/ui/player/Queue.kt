@@ -112,6 +112,8 @@ import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.plus.queue.PlusQueueSectionHeader
+import com.metrolist.music.plus.queue.clearUpcomingUserQueue
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
@@ -930,14 +932,25 @@ fun Queue(
                             }
                         }
 
-                        if (locked) {
-                            content()
-                        } else {
-                            SwipeToDismissBox(
-                                state = dismissBoxState,
-                                backgroundContent = {},
-                            ) {
+                        Column {
+                            // Metrolist Plus: "Now playing" / "Next in queue" / "Next from" sections
+                            PlusQueueSectionHeader(
+                                index = index,
+                                currentIndex = currentWindowIndex,
+                                windows = mutableQueueWindows,
+                                queueTitle = queueTitle,
+                                canEdit = !isListenTogetherGuest,
+                                onClearQueue = { playerConnection.player.clearUpcomingUserQueue() },
+                            )
+                            if (locked) {
                                 content()
+                            } else {
+                                SwipeToDismissBox(
+                                    state = dismissBoxState,
+                                    backgroundContent = {},
+                                ) {
+                                    content()
+                                }
                             }
                         }
                     }

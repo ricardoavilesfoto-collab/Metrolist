@@ -291,7 +291,7 @@ fun AppearanceSettings(
     val (swipeToSong, onSwipeToSongChange) =
         rememberPreference(
             SwipeToSongKey,
-            defaultValue = false,
+            defaultValue = true, // Metrolist Plus: on by default
         )
 
     val (swipeToRemoveSong, onSwipeToRemoveSongChange) =
@@ -1595,7 +1595,7 @@ fun AppearanceSettings(
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.swipe),
-                        title = { Text(stringResource(R.string.swipe_song_to_add)) },
+                        title = { Text(stringResource(R.string.plus_swipe_song_to_add)) }, // Metrolist Plus
                         trailingContent = {
                             Switch(
                                 checked = swipeToSong,

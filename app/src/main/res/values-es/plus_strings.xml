@@ -20,4 +20,9 @@
     <string name="plus_output_this_phone">Este teléfono</string>
     <string name="plus_output_headphones">Audífonos</string>
     <string name="plus_output_choose">Elegir dónde se escucha</string>
+    <string name="plus_next_in_queue">Siguiente en la cola</string>
+    <string name="plus_next_from">Siguiente desde: %1$s</string>
+    <string name="plus_up_next">A continuación</string>
+    <string name="plus_clear_queue">Borrar cola</string>
+    <string name="plus_swipe_song_to_add">Desliza una canción a la derecha para agregarla a la cola, o a la izquierda para reproducirla a continuación</string>
 </resources>

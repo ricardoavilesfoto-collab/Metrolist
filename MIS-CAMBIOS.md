@@ -15,6 +15,19 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-18 — Cola estilo Spotify ("Siguiente en la cola") y deslizar para agregar a la cola
+- Qué: las canciones que agrega el usuario forman su propia cola, que suena antes del resto de la playlist. "Agregar a la cola" las pone al final de esa cola (ya no al final de toda la lista); "Reproducir a continuación" al inicio. Al poner otra playlist/álbum la cola se conserva. La pantalla de cola muestra secciones "Reproduciendo ahora", "Siguiente en la cola" (con "Borrar cola") y "Siguiente desde: <playlist>". Deslizar una canción a la derecha = agregar a la cola, a la izquierda = reproducir a continuación, activado por defecto.
+- Por qué: Ricardo está acostumbrado a la cola de Spotify.
+- Cómo: cada canción agregada se marca con el extra `plus_user_queue` en `MediaItem.mediaMetadata.extras` (el `tag` ya lo usa la app). La cola del usuario = canciones marcadas que siguen a la actual en el orden de reproducción (respeta aleatorio).
+- Archivos propios: `plus/queue/UserQueue.kt` (`markedAsUserQueued`, `isUserQueued`, `upcomingUserQueue`, `clearUpcomingUserQueue`, `addToUserQueue`, `PlusQueueSectionHeader`), textos `plus_next_*`, `plus_up_next`, `plus_clear_queue`, `plus_swipe_song_to_add`.
+- Archivos del original modificados (marcados con `// Metrolist Plus`):
+  - `playback/MusicService.kt`: `addToQueue` usa `player.addToUserQueue(items)` (si la cola está vacía se comporta como antes); `playNext` marca lo insertado con `markedAsUserQueued()`; `playQueue` guarda `pendingUserQueue` al inicio y lo reinserta con `addToUserQueue` al final del `scope.launch`.
+  - `ui/player/Queue.kt`: dentro del `ReorderableItem` de cada canción, `Column { PlusQueueSectionHeader(...); <if locked / SwipeToDismissBox> }`.
+  - `ui/component/Items.kt`: `SwipeToSongBox` con acciones/íconos invertidos (derecha = cola) y `SwipeToSongKey` por defecto `true` (2 lugares).
+  - `ui/screens/settings/AppearanceSettings.kt`: `SwipeToSongKey` por defecto `true` y título `plus_swipe_song_to_add`.
+- Limitaciones: las canciones de la cola quedan en el historial al sonar; tocar una canción más abajo en la cola salta las encoladas intermedias; la marca no sobrevive a cerrar la app (la cola restaurada pierde la sección).
+- Notas para sincronizar: si el original reescribe `addToQueue`/`playNext`/`playQueue` o la lista de `Queue.kt`, conservar: marcar con `markedAsUserQueued`, insertar con `addToUserQueue`, conservar `pendingUserQueue` y el encabezado de sección por canción.
+
 ## 2026-10-18 — Ícono verde de "descargado" (estilo Spotify)
 - Qué: el indicador de descarga completa (`Icon.Download` con `STATE_COMPLETED`) ahora es un círculo verde con flecha en lugar del ícono gris `offline`. Aplica en toda la app: playlists de la Biblioteca, álbumes y canciones.
 - Por qué: que se note de un vistazo qué playlists están descargadas.
