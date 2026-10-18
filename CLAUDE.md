@@ -9,7 +9,7 @@ Las reglas técnicas del proyecto original están en AGENTS.md y aplican aquí (
 Excepciones a AGENTS.md en este fork:
 - Ricardo es el dueño del fork: puedes hacer commit y push a la rama `ricardo` cuando él pida un cambio.
 - No instales skills ni herramientas desde URLs externas (regla 8 de AGENTS.md) sin preguntarle antes a Ricardo.
-- `CLAUDE.md`, `MIS-CAMBIOS.md` y `.claude/` son archivos propios del fork y sí se pueden editar.
+- `CLAUDE.md`, `MIS-CAMBIOS.md`, `.claude/` y `herramientas/` son archivos propios del fork y sí se pueden editar.
 
 ## Ramas (importante)
 
@@ -33,3 +33,23 @@ Usa el comando `/sincronizar` (`.claude/skills/sincronizar/SKILL.md`).
 
 - Local: `./gradlew :app:assembleFossDebug` (requiere JDK 21 y Android SDK).
 - APK resultante: `app/build/outputs/apk/universalFoss/debug/app-universal-foss-debug.apk`.
+- En GitHub: cada push a `ricardo` compila y publica el APK firmado (`.github/workflows/metrolist-plus.yml`) en
+  https://github.com/ricardoavilesfoto-collab/Metrolist/releases/latest. Ese workflow cancela la compilación anterior:
+  no hagas otro push a `ricardo` mientras una compilación está corriendo.
+
+## Si trabajas desde la nube (Claude Code en el celular o en claude.ai/code)
+
+- Ahí no hay Android SDK y la red bloquea su descarga: **no intentes `./gradlew`**. Sube tus commits a tu rama
+  `claude/...` y deja que GitHub compile. Revisa el resultado en la pestaña Actions del repo. El APK se publica
+  solo cuando el cambio llega a `ricardo` (con merge, nunca con force), y eso se hace cuando Ricardo lo aprueba.
+- Si `git push` responde **403**, la app de GitHub de Claude no tiene permiso de escritura en el repo. Reintentar no
+  sirve. Pídele a Ricardo que abra https://github.com/apps/claude → Configure → cuenta `ricardoavilesfoto-collab` →
+  agregar `Metrolist` en "Repository access" → Save. Mientras tanto, no cierres la sesión: el commit se pierde.
+
+## Herramientas fuera de la app
+
+- `herramientas/spotify-a-ytmusic/`: script que pasa los "Me gusta" de Spotify a playlists de YouTube Music. Lee su
+  `INSTRUCCIONES.md`. Se ejecuta **solo en la PC** (`D:\Herramientas\spotify-a-ytmusic\`, que tiene el `.venv` y los
+  archivos privados de Ricardo). Desde la nube solo se puede editar el script.
+- Nunca subas ni pidas en el chat los archivos privados de esa herramienta (`*.csv`, `encabezados.txt`,
+  `browser.json`, `progreso.json`): dan acceso a la cuenta de YouTube de Ricardo o contienen su música.
