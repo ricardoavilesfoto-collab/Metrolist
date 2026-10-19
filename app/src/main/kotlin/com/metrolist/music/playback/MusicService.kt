@@ -939,7 +939,7 @@ class MusicService :
         }
 
         combine(
-            dataStore.data.map { it[AudioOffload] ?: false },
+            dataStore.data.map { it[AudioOffload] ?: true }, // Metrolist Plus: on by default (battery)
             dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
         ) { offloadPref, crossfadeEnabled ->
             // Force disable offload if crossfade is enabled to prevent volume ramp issues
@@ -1092,8 +1092,10 @@ class MusicService :
         scope.launch {
             while (isActive) {
                 delay(5_000)
-                Timber.tag("DiscordSvc").v("polling: periodic syncDiscordState tick")
-                syncDiscordState()
+                // Metrolist Plus: Discord RPC is on by default, so skip the work when nobody is logged in.
+                if (discordRpcEnabled && (DiscordRpcManager.isReady() || DiscordRpcManager.getAccessToken() != null)) {
+                    syncDiscordState()
+                }
             }
         }
 
@@ -1348,14 +1350,14 @@ class MusicService :
         equalizerService.addAudioProcessor(eqProcessor)
 
         if (prefs != null) {
-            val offload = prefs[AudioOffload] ?: false
+            val offload = prefs[AudioOffload] ?: true // Metrolist Plus
             val crossfade = prefs[CrossfadeEnabledKey] ?: false
             player.setOffloadEnabled(if (crossfade) false else offload)
             player.skipSilenceEnabled = prefs[SkipSilenceKey] ?: false
         } else {
             player.apply {
                 runBlocking {
-                    val offload = dataStore.get(AudioOffload, false)
+                    val offload = dataStore.get(AudioOffload, true) // Metrolist Plus
                     val crossfade = dataStore.get(CrossfadeEnabledKey, false)
                     setOffloadEnabled(if (crossfade) false else offload)
                     skipSilenceEnabled = dataStore.get(SkipSilenceKey, false)

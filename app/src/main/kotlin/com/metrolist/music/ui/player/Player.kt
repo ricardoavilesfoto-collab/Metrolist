@@ -753,7 +753,9 @@ fun BottomSheetPlayer(
     LaunchedEffect(isPlaying, isCasting) {
         if (!isCasting && isPlaying) {
             while (isActive) {
-                delay(100) // Update more frequently for smoother progress bar
+                // Metrolist Plus: smooth updates only while the full player is open; the mini player
+                // bar moves a couple of pixels per second, so 1 s saves ~9 redraws per second.
+                delay(if (state.isExpanded) 100 else 1000)
                 if (sliderPosition == null) { // Only update if user isn't dragging
                     position = playerConnection.player.currentPosition
                     // Don't clobber a valid (metadata-derived) duration with 0/UNSET mid-resolve.

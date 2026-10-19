@@ -135,7 +135,7 @@ fun PlayerSettings(
 
     val (audioOffload, onAudioOffloadChange) = rememberPreference(
         key = AudioOffload,
-        defaultValue = false
+        defaultValue = true, // Metrolist Plus
     )
 
     val (audioTrackPlaybackParams, onAudioTrackPlaybackParamsChange) = rememberPreference(

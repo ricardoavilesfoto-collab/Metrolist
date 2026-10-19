@@ -15,6 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-19 — Menos batería sin quitar animaciones
+- Qué: (1) "Descarga de audio" (*audio offload*) encendida por defecto: el chip de audio reproduce y el procesador duerme, como Spotify. Se sigue apagando sola con crossfade y se puede desactivar en Ajustes → Reproductor si en algún teléfono hay cortes. (2) Con el reproductor cerrado, la posición de la mini barra se actualiza cada 1 s en lugar de cada 100 ms (10 redibujados por segundo menos); con el reproductor abierto sigue a 100 ms. (3) El sondeo de Discord cada 5 s solo trabaja si hay sesión de Discord (el original lo trae activado por defecto aunque no se use).
+- Por qué: en el teléfono de Ricardo el 80 % del consumo era en primer plano (2 h) y 20 % en segundo plano (8 h). Ricardo pidió mantener las animaciones.
+- Archivos del original modificados (marcados `// Metrolist Plus`): `playback/MusicService.kt` (default `AudioOffload` = true en 3 lugares; condición en el bucle de Discord), `ui/screens/settings/PlayerSettings.kt` (default del interruptor), `ui/player/Player.kt` (`delay(if (state.isExpanded) 100 else 1000)` en la actualización de posición).
+- Notas para sincronizar: si el original cambia esos defaults o el bucle de posición, conservar los valores de Plus.
+
 ## 2026-10-18 — Tocar "Reproduciendo desde…" abre la playlist o el álbum
 - Qué: en el encabezado del reproductor (vertical), el nombre de la playlist/álbum que se está reproduciendo ahora se puede tocar y abre esa pantalla (el reproductor se minimiza). La cola solo guarda su nombre, así que se busca en la biblioteca: listas automáticas ("Me gusta", "Descargadas", "Subidas", "Mi top N", caché), luego playlists por nombre (prefiere las guardadas y usa la misma regla que la Biblioteca para elegir `local_playlist/` u `online_playlist/`), luego álbumes y artistas. Si no hay título de cola, abre el álbum de la canción. Si no se encuentra (playlists de YouTube no guardadas, radios, mixes), el nombre no se puede tocar.
 - Por qué: Ricardo esperaba que al tocar el nombre de la playlist lo llevara a ella, como en Spotify.
