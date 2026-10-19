@@ -115,7 +115,7 @@
     <string name="plus_stats_platforms">Where you listen</string>
     <string name="plus_stats_platform_speakers">Speakers and TV</string>
     <string name="plus_stats_platform_other">Other</string>
-    <string name="plus_stats_habits_note">Skips and shuffle come from Spotify's data.</string>
+    <string name="plus_stats_habits_note">Skips and shuffle come from the Spotify data.</string>
     <string name="plus_stats_full_history">Full history</string>
     <string name="plus_stats_full_history_description">Every play, day by day, from Spotify and Metrolist</string>
     <string name="plus_stats_searching">Searching on YouTube Music…</string>
