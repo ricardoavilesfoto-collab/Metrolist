@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -275,6 +276,8 @@ fun PlusStatsScreen(
             }
 
             item(key = "habits") { HabitsCard(stats.habits, source) }
+
+            item(key = "teach") { TeachCard(viewModel.database) }
 
             item(key = "history") {
                 Card(
@@ -706,6 +709,71 @@ private fun HabitsCard(habits: Habits, source: Int?) {
                 }.groupBy({ it.first }, { it.second }).map { (name, values) -> name to values.sum() }.sortedByDescending { it.second },
                 valueText = ::formatListening,
             )
+        }
+    }
+}
+
+@Composable
+private fun TeachCard(database: com.metrolist.music.db.MusicDatabase) {
+    val context = LocalContext.current
+    val progress by PlusTeacher.progress.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { PlusTeacher.refresh(context) }
+    StatsCard(stringResource(R.string.plus_teach_title)) {
+        Text(
+            stringResource(R.string.plus_teach_intro, "%,d".format(progress.total)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (progress.taught == 0 && !progress.running) {
+            Text(
+                stringResource(R.string.plus_teach_backup),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (progress.total > 0) {
+            LinearProgressIndicator(
+                progress = { ((progress.taught + progress.notFound).toFloat() / progress.total).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Hint(
+                stringResource(
+                    R.string.plus_teach_counts,
+                    "%,d".format(progress.taught),
+                    "%,d".format(progress.total),
+                    "%,d".format(progress.notFound),
+                    "%,d".format(progress.liked),
+                ),
+            )
+        }
+        progress.stop?.let { stop ->
+            Text(
+                stringResource(
+                    when (stop) {
+                        TeachStop.DONE -> R.string.plus_teach_done
+                        TeachStop.TRIAL_DONE -> R.string.plus_teach_trial_done
+                        TeachStop.NO_NETWORK -> R.string.plus_teach_no_network
+                        TeachStop.PAUSED -> R.string.plus_teach_paused
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
+            if (progress.running) {
+                Button(onClick = PlusTeacher::pause) { Text(stringResource(R.string.plus_teach_pause)) }
+            } else {
+                if (progress.taught > 0) {
+                    TextButton(onClick = { PlusTeacher.reset(context) }) { Text(stringResource(R.string.plus_teach_reset)) }
+                }
+                Button(
+                    onClick = { PlusTeacher.start(context, database) },
+                    enabled = progress.total > progress.taught + progress.notFound,
+                ) {
+                    Text(stringResource(if (progress.taught == 0) R.string.plus_teach_start_trial else R.string.plus_teach_continue))
+                }
+            }
         }
     }
 }

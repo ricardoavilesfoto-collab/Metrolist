@@ -22,6 +22,7 @@ class YouTubePlaylistQueue(
     override val preloadItem: MediaMetadata? = null,
 ) : Queue {
     private var continuation: String? = initialContinuation
+    val plusPlaylistId: String get() = playlistId // Metrolist Plus: where the queue was started
     private var retryCount = 0
     private val maxRetries = 3
 

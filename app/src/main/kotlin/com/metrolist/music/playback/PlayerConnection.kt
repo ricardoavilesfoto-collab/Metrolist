@@ -248,6 +248,7 @@ class PlayerConnection(
         if (!playerReadinessFlow.value) {
             Timber.tag(TAG).w("playQueue called before player ready; delegating to service")
         }
+        com.metrolist.music.plus.player.PlusPlayingFrom.onPlayQueue(queue) // Metrolist Plus
         try {
             service.playQueue(queue)
         } catch (e: Exception) {

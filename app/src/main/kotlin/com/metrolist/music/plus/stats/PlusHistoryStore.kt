@@ -84,6 +84,19 @@ data class HistoryRow(
 
 data class ResolvedTrack(val ytId: String, val item: SongItem?)
 
+data class TeachTrack(
+    val key: String,
+    val trackId: Long,
+    val title: String,
+    val artist: String,
+    val album: String?,
+    val ytId: String?,
+    val thumb: String?,
+    val match: Int?,
+    val taught: Boolean,
+    val plays: Long,
+)
+
 /** A song for a "Para ti" list: [ytId] is set when it was already found on YouTube. */
 data class PickTrack(val trackId: Long, val title: String, val artist: String, val ytId: String?, val thumb: String?)
 
@@ -119,6 +132,12 @@ class PlusHistoryStore private constructor(private val context: Context) {
 
         /** Remembered so Home can reserve the "Para ti" row without opening the database. */
         fun hasSpotifyHint(context: Context): Boolean = prefs(context).getBoolean(HAS_SPOTIFY, false)
+
+        /**
+         * Spotify plays copied into Metrolist's event table carry this marker: whole-second Spotify times + 1 ms
+         * and play times ending in 001 ms. Live plays almost never match both, so they can be told apart.
+         */
+        const val TAUGHT_EVENT = "timestamp % 1000 = 1 AND playTime % 1000 = 1"
 
         fun keyOf(text: String): String = PlusMatcher.normalize(text).ifEmpty { text.trim().lowercase() }
     }
@@ -170,6 +189,9 @@ class PlusHistoryStore private constructor(private val context: Context) {
         database.execSQL("INSERT OR IGNORE INTO meta(key, value) VALUES ('formato', '$FORMAT')")
         if (!hasColumn(database, "track", "thumb")) database.execSQL("ALTER TABLE track ADD COLUMN thumb TEXT")
         if (!hasColumn(database, "artist", "yt_id")) database.execSQL("ALTER TABLE artist ADD COLUMN yt_id TEXT")
+        // Teaching (phase 2): yt_match = 1 found / -1 not found on YouTube; taught = 1 when its plays are in Metrolist.
+        if (!hasColumn(database, "track", "yt_match")) database.execSQL("ALTER TABLE track ADD COLUMN yt_match INTEGER")
+        if (!hasColumn(database, "track", "taught")) database.execSQL("ALTER TABLE track ADD COLUMN taught INTEGER")
         createIndexes(database)
     }
 
@@ -346,6 +368,13 @@ class PlusHistoryStore private constructor(private val context: Context) {
                         "thumb = (SELECT o.thumb FROM old.artist o WHERE o.name = artist.name) " +
                         "WHERE name IN (SELECT name FROM old.artist WHERE thumb IS NOT NULL)",
                 )
+                runCatching {
+                    imported.execSQL(
+                        "UPDATE track SET yt_match = (SELECT o.yt_match FROM old.track o WHERE o.uri = track.uri), " +
+                            "taught = (SELECT o.taught FROM old.track o WHERE o.uri = track.uri) " +
+                            "WHERE uri IN (SELECT uri FROM old.track WHERE yt_match IS NOT NULL OR taught IS NOT NULL)",
+                    )
+                }
             } finally {
                 imported.execSQL("DETACH DATABASE old")
             }
@@ -353,6 +382,18 @@ class PlusHistoryStore private constructor(private val context: Context) {
     }
 
     suspend fun clearSpotify(database: MusicDatabase) = withContext(Dispatchers.IO) {
+        // Also takes back the Spotify plays that were taught to Metrolist.
+        runCatching {
+            database.withTransaction {
+                val main = openHelper.writableDatabase
+                main.execSQL(
+                    "UPDATE song SET totalPlayTime = MAX(0, totalPlayTime - COALESCE((SELECT SUM(e.playTime) FROM event e " +
+                        "WHERE e.songId = song.id AND ${TAUGHT_EVENT.replace("timestamp", "e.timestamp").replace("playTime", "e.playTime")}), 0)) " +
+                        "WHERE id IN (SELECT songId FROM event WHERE $TAUGHT_EVENT)",
+                )
+                main.execSQL("DELETE FROM event WHERE $TAUGHT_EVENT")
+            }
+        }.onFailure { Timber.e(it, "Could not remove taught plays") }
         writeMutex.withLock {
             db.close()
             deleteDatabaseFiles(context.getDatabasePath(FILE))
@@ -436,7 +477,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
                         "FROM event e JOIN song s ON s.id = e.songId " +
                         "LEFT JOIN song_artist_map m ON m.songId = s.id AND m.position = 0 " +
                         "LEFT JOIN artist a ON a.id = m.artistId " +
-                        "WHERE s.isEpisode = 0",
+                        "WHERE s.isEpisode = 0 AND NOT ($TAUGHT_EVENT)",
                 ).use { cursor ->
                     while (cursor.moveToNext()) {
                         val songId = cursor.getString(2)
@@ -713,6 +754,59 @@ class PlusHistoryStore private constructor(private val context: Context) {
         ).firstOrNull() ?: return null
         return artist.title to track
     }
+
+    // ---------------------------------------------------------------- Teaching (phase 2)
+
+    /** Songs with at least [minPlays] Spotify plays, most played first. */
+    fun teachList(minPlays: Int): List<TeachTrack> = rows(
+        "SELECT t.track_key, MIN(t.id), MAX(t.name), MAX(a.name), MAX(al.name), MAX(t.yt_id), MAX(t.thumb), MAX(t.yt_match), " +
+            "MIN(COALESCE(t.taught, 0)), COUNT(*) c FROM play p JOIN track t ON t.id = p.track_id " +
+            "JOIN artist a ON a.id = t.artist_id LEFT JOIN album al ON al.id = t.album_id " +
+            "WHERE p.source = $SOURCE_SPOTIFY AND p.ms >= $PLAY_MS GROUP BY t.track_key HAVING c >= $minPlays ORDER BY c DESC",
+    ) {
+        TeachTrack(
+            key = it.getString(0),
+            trackId = it.getLong(1),
+            title = it.getString(2),
+            artist = it.getString(3),
+            album = it.getStringOrNull(4),
+            ytId = it.getStringOrNull(5),
+            thumb = it.getStringOrNull(6),
+            match = if (it.isNull(7)) null else it.getInt(7),
+            taught = it.getInt(8) == 1,
+            plays = it.getLong(9),
+        )
+    }
+
+    /** Points every version of the song to the same YouTube video (or marks it not found). */
+    suspend fun setMatch(key: String, ytId: String?, thumb: String?) = writeMutex.withLock {
+        if (ytId != null) {
+            db.execSQL(
+                "UPDATE track SET yt_id = ?, thumb = COALESCE(thumb, ?), yt_match = 1 WHERE track_key = ?",
+                arrayOf<Any?>(ytId, thumb, key),
+            )
+        } else {
+            db.execSQL("UPDATE track SET yt_match = -1 WHERE track_key = ? AND yt_id IS NULL", arrayOf(key))
+        }
+    }
+
+    suspend fun setTaught(ytId: String) = writeMutex.withLock {
+        db.execSQL("UPDATE track SET taught = 1 WHERE yt_id = ?", arrayOf(ytId))
+    }
+
+    suspend fun resetTaught() = writeMutex.withLock {
+        db.execSQL("UPDATE track SET taught = NULL")
+    }
+
+    /** Spotify plays (30 s or more) of every track matched to [ytId]: local time and length. */
+    fun spotifyPlaysFor(ytId: String): List<Pair<Long, Long>> =
+        db.rawQuery(
+            "SELECT p.ts_local, p.ms FROM play p JOIN track t ON t.id = p.track_id " +
+                "WHERE t.yt_id = ? AND p.source = $SOURCE_SPOTIFY AND p.ms >= $PLAY_MS",
+            arrayOf(ytId),
+        ).use { cursor ->
+            buildList { while (cursor.moveToNext()) add(cursor.getLong(0) to cursor.getLong(1)) }
+        }
 
     // ---------------------------------------------------------------- YouTube matching
 

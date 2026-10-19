@@ -142,4 +142,16 @@
     <string name="plus_foryou_all_time_description">Your 50 most played songs ever</string>
     <string name="plus_foryou_year">Your %1$s</string>
     <string name="plus_foryou_year_description">Your 50 most played songs of %1$s</string>
+    <string name="plus_teach_title">Teach your history to YouTube Music</string>
+    <string name="plus_teach_intro">Finds your %1$s songs with 10 or more Spotify plays on YouTube and adds their plays to your Metrolist history (Home, History and Classic stats). Your 300 most played get a Like. It takes a few hours: keep the app open or music playing. You can pause anytime.</string>
+    <string name="plus_teach_backup">Before starting, make a Metrolist backup in Settings.</string>
+    <string name="plus_teach_counts">%1$s of %2$s ready · %3$s not found · %4$s liked</string>
+    <string name="plus_teach_start_trial">Try with 50</string>
+    <string name="plus_teach_continue">Continue</string>
+    <string name="plus_teach_pause">Pause</string>
+    <string name="plus_teach_reset">Start over</string>
+    <string name="plus_teach_trial_done">Test done with your top 50. Check History and Classic stats: if everything looks right, tap Continue.</string>
+    <string name="plus_teach_done">Done: your history is in Metrolist.</string>
+    <string name="plus_teach_paused">Paused. Tap Continue to resume where it stopped.</string>
+    <string name="plus_teach_no_network">Stopped: YouTube is not responding (no internet?). Tap Continue to try again.</string>
 </resources>

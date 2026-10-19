@@ -15,6 +15,36 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-19 — Fase 2: enseñarle el historial de Spotify a Metrolist y YouTube Music
+- Qué: tarjeta "Enseñarle tu historial a YouTube Music" en Estadísticas Plus (`plus/stats/PlusTeacher.kt`).
+  - Busca en YouTube las ~7,700 canciones con 10+ reproducciones en Spotify, de la más escuchada a la menos. Las versiones de una misma canción cuentan como una.
+  - Copia sus reproducciones al historial de Metrolist (tabla `event` + `song.totalPlayTime`) y da "Me gusta" (local, y en YouTube si hay sesión y sincronización) a las 300 más escuchadas.
+  - La primera vez se detiene después de 50 para revisar. Se puede pausar y continuar.
+  - Si YouTube no responde 4 veces seguidas, se detiene sin marcar canciones como "no encontradas" (`PlusMatcher.findOnYouTubeMusicOrThrow`).
+- Por qué: que Selección rápida, Favoritos olvidados, Historial y Estadísticas clásicas conozcan los 12 años de Spotify, y que YouTube Music reciba señal de sus favoritas.
+- Marca: cada reproducción copiada lleva `timestamp % 1000 = 1 AND playTime % 1000 = 1` (`PlusHistoryStore.TAUGHT_EVENT`).
+  - Es idempotente: cada canción borra sus filas marcadas, resta su tiempo y las vuelve a escribir.
+  - El espejo de Estadísticas Plus excluye esas filas, así que sus totales no cambian.
+  - "Borrar historial de Spotify" también las quita de Metrolist.
+  - "Volver a empezar" borra las banderas `taught` (útil tras restaurar una copia de Metrolist).
+- Archivos propios: `PlusTeacher.kt`; `PlusHistoryStore.kt` (columnas `track.yt_match` y `track.taught`, `teachList`, `setMatch`, `setTaught`, `spotifyPlaysFor`, exclusión en el espejo, limpieza en `clearSpotify`); `PlusStatsScreen.kt` (`TeachCard`); `plus/transfer/Matcher.kt`; textos `plus_teach_*`.
+- Base de datos de Metrolist: no cambia el esquema, solo agrega filas a `event` con el DAO dentro de `withTransaction`. No se crean índices nuevos.
+- Efecto esperado: durante y justo después de enseñar, Selección rápida se basa en las últimas canciones enseñadas, porque usa `ORDER BY ROWID DESC`. Se corrige solo con unas cuantas reproducciones reales.
+
+## 2026-10-19 — "Reproduciendo desde…" lleva al álbum, mix, radio o pantalla de origen
+- Qué: el encabezado del reproductor ahora recuerda desde qué pantalla se inició la cola y vuelve ahí (álbum, playlist, artista, búsqueda, historial…).
+  - Si se inició desde una pestaña principal (Inicio, Biblioteca, Buscar), usa la playlist o mix de YouTube de la cola (`online_playlist/<id>`, salvo radios `RDAMVM…`).
+  - Si no hay nada de eso, busca el nombre en la biblioteca como antes y, al final, abre el artista de la canción.
+  - El origen se guarda en SharedPreferences `plus_playing_from` para que sobreviva a reiniciar la app.
+- Por qué: Ricardo quería que tocar el título lo lleve siempre al lugar de lo que suena, no solo con playlists guardadas.
+- Archivos propios: `plus/player/PlayingFromRoute.kt` (`PlusPlayingFrom`).
+- Archivos del original modificados (una línea cada uno, marcados `// Metrolist Plus`):
+  - `MainActivity.kt`: `PlusPlayingFrom.Track(navController)` después de `rememberNavController()`.
+  - `playback/PlayerConnection.kt`: `PlusPlayingFrom.onPlayQueue(queue)` en `playQueue`.
+  - `playback/queues/YouTubeQueue.kt`: `val plusEndpoint`.
+  - `playback/queues/YouTubePlaylistQueue.kt`: `val plusPlaylistId`.
+- Notas para sincronizar: si el original renombra `endpoint` o `playlistId` en esas colas, ajustar las dos propiedades.
+
 ## 2026-10-19 — Hábitos de Metrolist, exportar historial y "Para ti" en el Inicio
 - Qué:
   1. **Registro de hábitos**: cada canción que suena en Metrolist guarda cuánto se escuchó, si se saltó (menos de 30 s o menos de la mitad), si estaba en aleatorio y la salida de audio (bocina, audífonos, Bluetooth con nombre). Va a `databases/plus_habitos.db`, aparte, para que importar o borrar Spotify nunca lo toque. Respeta "Pausar historial" y omite podcasts. En Estadísticas Plus, "Saltadas" y "Aleatorio" combinan Spotify con este registro, y hay una sección nueva "Cómo escuchas en Metrolist".

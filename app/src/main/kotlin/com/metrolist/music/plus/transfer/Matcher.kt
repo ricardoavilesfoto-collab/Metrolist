@@ -18,11 +18,16 @@ internal object PlusMatcher {
     class Match(val item: SongItem, val score: Double)
 
     /** Same criteria as herramientas/spotify-a-ytmusic: songs first, then videos if unsure. */
-    suspend fun findOnYouTubeMusic(track: TransferTrack): Match? {
+    suspend fun findOnYouTubeMusic(track: TransferTrack): Match? = find(track, strict = false)
+
+    /** Like [findOnYouTubeMusic], but throws when a request fails, so "offline" is not taken as "not found". */
+    suspend fun findOnYouTubeMusicOrThrow(track: TransferTrack): Match? = find(track, strict = true)
+
+    private suspend fun find(track: TransferTrack, strict: Boolean): Match? {
         val query = "${track.title} ${track.artists.firstOrNull().orEmpty()}".trim()
         var best: Match? = null
         for (filter in listOf(YouTube.SearchFilter.FILTER_SONG, YouTube.SearchFilter.FILTER_VIDEO)) {
-            search(query, filter).forEach { item ->
+            search(query, filter, strict).forEach { item ->
                 val score = score(track, item)
                 if (score > (best?.score ?: 0.0)) best = Match(item, score)
             }
@@ -39,8 +44,8 @@ internal object PlusMatcher {
             ?.firstOrNull { normalize(it.title) == wanted }
     }
 
-    private suspend fun search(query: String, filter: YouTube.SearchFilter): List<SongItem> =
-        YouTube.search(query, filter).getOrNull()
+    private suspend fun search(query: String, filter: YouTube.SearchFilter, strict: Boolean): List<SongItem> =
+        YouTube.search(query, filter).let { if (strict) it.getOrThrow() else it.getOrNull() }
             ?.items
             ?.filterIsInstance<SongItem>()
             ?.distinctBy { it.id }

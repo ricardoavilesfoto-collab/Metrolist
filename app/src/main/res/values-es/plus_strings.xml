@@ -142,4 +142,16 @@
     <string name="plus_foryou_all_time_description">Tus 50 canciones más escuchadas de todos los tiempos</string>
     <string name="plus_foryou_year">Tu %1$s</string>
     <string name="plus_foryou_year_description">Tus 50 canciones más escuchadas de %1$s</string>
+    <string name="plus_teach_title">Enseñarle tu historial a YouTube Music</string>
+    <string name="plus_teach_intro">Busca en YouTube tus %1$s canciones con 10 o más reproducciones en Spotify y agrega sus reproducciones a tu historial de Metrolist (Inicio, Historial y Estadísticas clásicas). A tus 300 más escuchadas les da Me gusta. Tarda unas horas: deja la app abierta o con música sonando. Puedes pausar cuando quieras.</string>
+    <string name="plus_teach_backup">Antes de empezar, haz una copia de seguridad de Metrolist en Ajustes.</string>
+    <string name="plus_teach_counts">%1$s de %2$s listas · %3$s no encontradas · %4$s Me gusta</string>
+    <string name="plus_teach_start_trial">Probar con 50</string>
+    <string name="plus_teach_continue">Continuar</string>
+    <string name="plus_teach_pause">Pausar</string>
+    <string name="plus_teach_reset">Volver a empezar</string>
+    <string name="plus_teach_trial_done">Prueba lista con tu top 50. Revisa Historial y Estadísticas clásicas: si todo se ve bien, toca Continuar.</string>
+    <string name="plus_teach_done">Listo: tu historial ya está en Metrolist.</string>
+    <string name="plus_teach_paused">En pausa. Toca Continuar para seguir donde se quedó.</string>
+    <string name="plus_teach_no_network">Se detuvo: YouTube no responde (¿sin internet?). Toca Continuar para reintentar.</string>
 </resources>
