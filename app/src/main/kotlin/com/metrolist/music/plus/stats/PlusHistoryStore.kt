@@ -84,7 +84,7 @@ data class ResolvedTrack(val ytId: String, val item: SongItem?)
 sealed interface ImportState {
     data class Running(val step: Int, val fraction: Float?) : ImportState
     data class Done(val plays: Long, val tracks: Long, val hours: Long) : ImportState
-    data class Failed(val notHistoryFile: Boolean) : ImportState
+    data class Failed(val notHistoryFile: Boolean, val detail: String? = null) : ImportState
 }
 
 class PlusHistoryStore private constructor(private val context: Context) {
@@ -200,11 +200,19 @@ class PlusHistoryStore private constructor(private val context: Context) {
             context.contentResolver.openInputStream(uri)!!.use { input ->
                 tmp.outputStream().use { input.copyTo(it, 1 shl 16) }
             }
+            val size = "%.1f MB".format(tmp.length() / 1_000_000.0)
+            val header = tmp.inputStream().use { input -> ByteArray(16).also { input.read(it) } }
+            if (!String(header, Charsets.ISO_8859_1).startsWith("SQLite format 3")) {
+                val start = String(header, Charsets.ISO_8859_1).filter { it in ' '..'~' }
+                _importState.value = ImportState.Failed(notHistoryFile = true, detail = "$size, \"$start\"")
+                return@withContext
+            }
             val imported = SQLiteDatabase.openDatabase(tmp.path, null, SQLiteDatabase.OPEN_READWRITE)
             try {
-                val valid = runCatching { meta(imported, "formato") == FORMAT }.getOrDefault(false)
-                if (!valid) {
-                    _importState.value = ImportState.Failed(notHistoryFile = true)
+                val format = runCatching { meta(imported, "formato") }
+                if (format.getOrNull()?.trim() != FORMAT) {
+                    val detail = format.exceptionOrNull()?.message ?: "formato=${format.getOrNull()}"
+                    _importState.value = ImportState.Failed(notHistoryFile = true, detail = "$size, $detail")
                     return@withContext
                 }
                 ensureSchema(imported)
@@ -232,7 +240,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
             _importState.value = ImportState.Done(summary.plays, summary.tracks, summary.totalMs / 3_600_000)
         } catch (e: Exception) {
             Timber.e(e, "Spotify history import failed")
-            _importState.value = ImportState.Failed(notHistoryFile = e is android.database.sqlite.SQLiteException)
+            _importState.value = ImportState.Failed(notHistoryFile = false, detail = e.toString().take(300))
         } finally {
             deleteDatabaseFiles(tmp)
             bump()
@@ -274,26 +282,30 @@ class PlusHistoryStore private constructor(private val context: Context) {
         _importState.value = ImportState.Running(STEP_NAMES, 0f)
         database.beginTransaction()
         try {
+            // Read first, then write: updating rows a filtered cursor is still reading makes it skip rows.
+            val artists = rows("SELECT id, name FROM artist WHERE artist_key IS NULL", database) { it.getLong(0) to it.getString(1) }
+            val artistKeys = HashMap<Long, String>()
+            database.rawQuery("SELECT id, artist_key FROM artist WHERE artist_key IS NOT NULL", null).use { cursor ->
+                while (cursor.moveToNext()) artistKeys[cursor.getLong(0)] = cursor.getString(1)
+            }
             val updateArtist = database.compileStatement("UPDATE artist SET artist_key = ? WHERE id = ?")
-            database.rawQuery("SELECT id, name FROM artist WHERE artist_key IS NULL", null).use { cursor ->
-                while (cursor.moveToNext()) {
-                    updateArtist.bindString(1, keyOf(cursor.getString(1)))
-                    updateArtist.bindLong(2, cursor.getLong(0))
-                    updateArtist.executeUpdateDelete()
-                }
+            artists.forEach { (id, name) ->
+                val key = keyOf(name)
+                artistKeys[id] = key
+                updateArtist.bindString(1, key)
+                updateArtist.bindLong(2, id)
+                updateArtist.executeUpdateDelete()
             }
             val updateTrack = database.compileStatement("UPDATE track SET track_key = ? WHERE id = ?")
             var done = 0L
-            database.rawQuery(
-                "SELECT t.id, t.name, a.artist_key FROM track t JOIN artist a ON a.id = t.artist_id WHERE t.track_key IS NULL",
-                null,
-            ).use { cursor ->
-                while (cursor.moveToNext()) {
-                    updateTrack.bindString(1, keyOf(cursor.getString(1)) + "|" + cursor.getString(2))
-                    updateTrack.bindLong(2, cursor.getLong(0))
-                    updateTrack.executeUpdateDelete()
-                    if (++done % 2000 == 0L) _importState.value = ImportState.Running(STEP_NAMES, done.toFloat() / total)
-                }
+            val tracks = rows("SELECT id, name, artist_id FROM track WHERE track_key IS NULL", database) {
+                Triple(it.getLong(0), it.getString(1), it.getLong(2))
+            }
+            tracks.forEach { (id, name, artistId) ->
+                updateTrack.bindString(1, keyOf(name) + "|" + artistKeys[artistId].orEmpty())
+                updateTrack.bindLong(2, id)
+                updateTrack.executeUpdateDelete()
+                if (++done % 2000 == 0L) _importState.value = ImportState.Running(STEP_NAMES, done.toFloat() / total)
             }
             database.setTransactionSuccessful()
         } finally {
@@ -451,11 +463,12 @@ class PlusHistoryStore private constructor(private val context: Context) {
 
     private inline fun <T> query(sql: String, block: (Cursor) -> T): T = db.rawQuery(sql, null).use(block)
 
-    private inline fun <T> rows(sql: String, crossinline map: (Cursor) -> T): List<T> = query(sql) { cursor ->
-        val list = ArrayList<T>(cursor.count.coerceAtLeast(0))
-        while (cursor.moveToNext()) list += map(cursor)
-        list
-    }
+    private inline fun <T> rows(sql: String, database: SQLiteDatabase = db, map: (Cursor) -> T): List<T> =
+        database.rawQuery(sql, null).use { cursor ->
+            val list = ArrayList<T>()
+            while (cursor.moveToNext()) list += map(cursor)
+            list
+        }
 
     fun bounds(source: Int?): Pair<Long, Long>? = query(
         "SELECT MIN(ts_local), MAX(ts_local) FROM play p" + (source?.let { " WHERE p.source = $it" } ?: ""),

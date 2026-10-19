@@ -714,7 +714,14 @@ private fun ImportDialog(state: ImportState?, onDismiss: () -> Unit) {
         is ImportState.Failed -> AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(R.string.plus_stats_import_failed)) },
-            text = { if (state.notHistoryFile) Text(stringResource(R.string.plus_stats_import_wrong_file)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.notHistoryFile) Text(stringResource(R.string.plus_stats_import_wrong_file))
+                    state.detail?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
             confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } },
         )
     }
