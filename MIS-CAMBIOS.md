@@ -15,6 +15,29 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-19 — Hábitos de Metrolist, exportar historial y "Para ti" en el Inicio
+- Qué:
+  1. **Registro de hábitos**: cada canción que suena en Metrolist guarda cuánto se escuchó, si se saltó (menos de 30 s o menos de la mitad), si estaba en aleatorio y la salida de audio (bocina, audífonos, Bluetooth con nombre). Va a `databases/plus_habitos.db`, aparte, para que importar o borrar Spotify nunca lo toque. Respeta "Pausar historial" y omite podcasts. En Estadísticas Plus, "Saltadas" y "Aleatorio" combinan Spotify con este registro, y hay una sección nueva "Cómo escuchas en Metrolist".
+  2. **Exportar historial** (⋮ en Estadísticas Plus): guarda `historial_metrolist_plus.db` con todo (Spotify + espejo de Metrolist + hábitos). Ese archivo se puede volver a importar: los hábitos se mezclan sin duplicar.
+  3. **Fila "Para ti" hasta arriba del Inicio**, solo si se importó Spotify:
+     - Para esta hora: lo que sueles oír ±1 h, entre semana o fin de semana, últimos 3 años.
+     - Redescubre: 10+ reproducciones de hace más de 2 años y nada en 9 meses.
+     - Radio de tu artista #1 de los últimos 90 días: `YouTubeQueue` se vuelve radio.
+     - Tu top de siempre, y Tu <año> para cada año.
+     - Las listas usan las canciones ya emparejadas y buscan a lo más 15 en el momento. Nunca agregan a la cola después de empezar.
+- Por qué: Ricardo quiere dejar Spotify y que Metrolist Plus registre sus hábitos y le recomiende con base en toda su historia.
+- Archivos propios:
+  - `plus/stats/PlusListenLog.kt`
+  - `plus/stats/PlusForYou.kt` (ViewModel + fila)
+  - cambios en `PlusHistoryStore.kt`: export, consultas `forHour`, `rediscover`, `topPicks`, `radioSeed`; `resolve` ahora guarda la canción en Metrolist; marca `has_spotify` en SharedPreferences `plus_stats`.
+  - `PlusStatsScreen.kt`, `PlusStatsViewModel.kt`
+  - `plus/player/AudioOutput.kt`: `currentAudioOutput` pasa de private a internal.
+  - textos `plus_stats_*` y `plus_foryou_*`
+- Archivos del original modificados (marcados `// Metrolist Plus`):
+  - `playback/MusicService.kt`: al inicio de `onPlaybackStatsReady`, llamada a `PlusListenLog.record(...)` si no está pausado el historial.
+  - `ui/screens/HomeScreen.kt`: `item(key = "plus_for_you")` antes de `homeSections.forEach`.
+- Notas para sincronizar: si el original mueve `onPlaybackStatsReady` o el `LazyColumn` del Inicio, volver a poner esas dos llamadas.
+
 ## 2026-10-19 — Estadísticas Plus con gráficas e historial de Spotify
 - Qué: pantalla nueva "Estadísticas Plus" (ruta `plus/stats`). Junta el historial extendido de Spotify (2014–2026, ~466 mil reproducciones) con el historial de Metrolist. Trae:
   - Resumen: horas, días, reproducciones, canciones, artistas y promedio diario.

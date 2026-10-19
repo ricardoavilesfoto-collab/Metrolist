@@ -135,6 +135,18 @@ fun PlusStatsScreen(
         if (uri != null) viewModel.import(uri)
     }
     val openPicker = { picker.launch(arrayOf("*/*")) }
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val ok = viewModel.export(uri)
+                Toast.makeText(
+                    context,
+                    if (ok) R.string.plus_stats_export_done else R.string.plus_stats_export_failed,
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
@@ -309,6 +321,14 @@ fun PlusStatsScreen(
                         onClick = {
                             menuOpen = false
                             openPicker()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.plus_stats_export)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.backup), contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            exporter.launch("historial_metrolist_plus.db")
                         },
                     )
                     DropdownMenuItem(
@@ -643,7 +663,30 @@ private fun HabitsCard(habits: Habits, source: Int?) {
             })
         }
         TileGrid(tiles)
-        if (habits.skipRate != null && source == null) Hint(stringResource(R.string.plus_stats_habits_note))
+        if (habits.skipRate != null && source == null) {
+            Hint(
+                habits.loggingSince?.let {
+                    stringResource(R.string.plus_stats_habits_note_logging, storedMillisToDate(it).toLocalDate().format(dateFormat))
+                } ?: stringResource(R.string.plus_stats_habits_note),
+            )
+        }
+        if (habits.outputs.isNotEmpty()) {
+            Text(stringResource(R.string.plus_stats_outputs), style = MaterialTheme.typography.titleSmall)
+            val phone = stringResource(R.string.plus_stats_output_phone)
+            val headphones = stringResource(R.string.plus_stats_output_headphones)
+            val bluetooth = stringResource(R.string.plus_stats_output_bluetooth)
+            HorizontalBars(
+                items = habits.outputs.map { (output, ms) ->
+                    when (output) {
+                        "phone" -> phone
+                        "headphones" -> headphones
+                        "bluetooth" -> bluetooth
+                        else -> output
+                    } to ms
+                },
+                valueText = ::formatListening,
+            )
+        }
         if (habits.platforms.isNotEmpty()) {
             Text(stringResource(R.string.plus_stats_platforms), style = MaterialTheme.typography.titleSmall)
             val other = stringResource(R.string.plus_stats_platform_other)

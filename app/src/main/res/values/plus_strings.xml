@@ -121,4 +121,25 @@
     <string name="plus_stats_searching">Searching on YouTube Music…</string>
     <string name="plus_stats_not_found">Not found on YouTube Music</string>
     <string name="plus_stats_empty">No listening history yet.</string>
+    <string name="plus_stats_export">Export history</string>
+    <string name="plus_stats_export_done">History saved. Keep the file as a backup: you can import it again from this menu.</string>
+    <string name="plus_stats_export_failed">Could not save the history</string>
+    <string name="plus_stats_habits_note_logging">Skips and shuffle come from Spotify, and from Metrolist since %1$s.</string>
+    <string name="plus_stats_outputs">How you listen on Metrolist</string>
+    <string name="plus_stats_output_phone">Phone speaker</string>
+    <string name="plus_stats_output_headphones">Wired headphones</string>
+    <string name="plus_stats_output_bluetooth">Bluetooth</string>
+    <string name="plus_foryou_title">For you</string>
+    <string name="plus_foryou_preparing">Preparing the list…</string>
+    <string name="plus_foryou_hour">For this hour</string>
+    <string name="plus_foryou_hour_weekday">What you usually play around this time on weekdays</string>
+    <string name="plus_foryou_hour_weekend">What you usually play around this time on weekends</string>
+    <string name="plus_foryou_rediscover">Rediscover</string>
+    <string name="plus_foryou_rediscover_description">Old favorites you have not played in a while</string>
+    <string name="plus_foryou_radio">%1$s radio</string>
+    <string name="plus_foryou_radio_description">Based on your most played artist lately</string>
+    <string name="plus_foryou_all_time">Your all-time top</string>
+    <string name="plus_foryou_all_time_description">Your 50 most played songs ever</string>
+    <string name="plus_foryou_year">Your %1$s</string>
+    <string name="plus_foryou_year_description">Your 50 most played songs of %1$s</string>
 </resources>

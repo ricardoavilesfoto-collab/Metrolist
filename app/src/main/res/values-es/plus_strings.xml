@@ -121,4 +121,25 @@
     <string name="plus_stats_searching">Buscando en YouTube Music…</string>
     <string name="plus_stats_not_found">No la encontré en YouTube Music</string>
     <string name="plus_stats_empty">Todavía no hay historial.</string>
+    <string name="plus_stats_export">Exportar historial</string>
+    <string name="plus_stats_export_done">Historial guardado. Conserva el archivo como respaldo: puedes volver a importarlo desde este menú.</string>
+    <string name="plus_stats_export_failed">No se pudo guardar el historial</string>
+    <string name="plus_stats_habits_note_logging">Saltadas y aleatorio salen de Spotify y, desde el %1$s, de Metrolist.</string>
+    <string name="plus_stats_outputs">Cómo escuchas en Metrolist</string>
+    <string name="plus_stats_output_phone">Bocina del teléfono</string>
+    <string name="plus_stats_output_headphones">Audífonos con cable</string>
+    <string name="plus_stats_output_bluetooth">Bluetooth</string>
+    <string name="plus_foryou_title">Para ti</string>
+    <string name="plus_foryou_preparing">Preparando la lista…</string>
+    <string name="plus_foryou_hour">Para esta hora</string>
+    <string name="plus_foryou_hour_weekday">Lo que sueles escuchar a esta hora entre semana</string>
+    <string name="plus_foryou_hour_weekend">Lo que sueles escuchar a esta hora en fin de semana</string>
+    <string name="plus_foryou_rediscover">Redescubre</string>
+    <string name="plus_foryou_rediscover_description">Tus favoritas de hace años que ya no escuchas</string>
+    <string name="plus_foryou_radio">Radio de %1$s</string>
+    <string name="plus_foryou_radio_description">Basada en tu artista más escuchado últimamente</string>
+    <string name="plus_foryou_all_time">Tu top de siempre</string>
+    <string name="plus_foryou_all_time_description">Tus 50 canciones más escuchadas de todos los tiempos</string>
+    <string name="plus_foryou_year">Tu %1$s</string>
+    <string name="plus_foryou_year_description">Tus 50 canciones más escuchadas de %1$s</string>
 </resources>

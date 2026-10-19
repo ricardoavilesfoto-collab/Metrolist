@@ -132,7 +132,7 @@ constructor(
     }
 
     suspend fun resolveForPlayback(trackId: Long): Pair<String, MediaMetadata?>? = withContext(Dispatchers.IO) {
-        val resolved = runCatching { store.resolve(trackId) }.getOrNull() ?: return@withContext null
+        val resolved = runCatching { store.resolve(trackId, database) }.getOrNull() ?: return@withContext null
         val metadata = resolved.item?.toMediaMetadata()
             ?: runCatching { database.getSongByIdBlocking(resolved.ytId)?.toMediaMetadata() }.getOrNull()
         resolved.ytId to metadata

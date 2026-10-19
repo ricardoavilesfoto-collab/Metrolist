@@ -15,6 +15,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.plus.transfer.PlusMatcher
 import com.metrolist.music.plus.transfer.TransferTrack
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +67,8 @@ data class Habits(
     val streakStart: Long?,
     val currentStreak: Int,
     val platforms: List<Pair<String, Long>>,
+    val outputs: List<Pair<String, Long>>,
+    val loggingSince: Long?,
 )
 
 data class HistoryRow(
@@ -80,6 +83,9 @@ data class HistoryRow(
 )
 
 data class ResolvedTrack(val ytId: String, val item: SongItem?)
+
+/** A song for a "Para ti" list: [ytId] is set when it was already found on YouTube. */
+data class PickTrack(val trackId: Long, val title: String, val artist: String, val ytId: String?, val thumb: String?)
 
 sealed interface ImportState {
     data class Running(val step: Int, val fraction: Float?) : ImportState
@@ -106,6 +112,13 @@ class PlusHistoryStore private constructor(private val context: Context) {
             instance ?: synchronized(this) {
                 instance ?: PlusHistoryStore(context.applicationContext).also { instance = it }
             }
+
+        private const val HAS_SPOTIFY = "has_spotify"
+
+        private fun prefs(context: Context) = context.getSharedPreferences("plus_stats", Context.MODE_PRIVATE)
+
+        /** Remembered so Home can reserve the "Para ti" row without opening the database. */
+        fun hasSpotifyHint(context: Context): Boolean = prefs(context).getBoolean(HAS_SPOTIFY, false)
 
         fun keyOf(text: String): String = PlusMatcher.normalize(text).ifEmpty { text.trim().lowercase() }
     }
@@ -154,6 +167,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
                 "ts_local INTEGER, ms INTEGER NOT NULL, track_id INTEGER NOT NULL, skipped INTEGER, shuffle INTEGER, " +
                 "platform TEXT, reason_end INTEGER)",
         )
+        database.execSQL("INSERT OR IGNORE INTO meta(key, value) VALUES ('formato', '$FORMAT')")
         if (!hasColumn(database, "track", "thumb")) database.execSQL("ALTER TABLE track ADD COLUMN thumb TEXT")
         if (!hasColumn(database, "artist", "yt_id")) database.execSQL("ALTER TABLE artist ADD COLUMN yt_id TEXT")
         createIndexes(database)
@@ -219,6 +233,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
                 fillLocalTime(imported)
                 fillKeys(imported)
                 _importState.value = ImportState.Running(STEP_INDEX, null)
+                runCatching { PlusListenLog.mergeFrom(context, imported) }.onFailure { Timber.w(it, "Could not merge habits") }
                 keepResolvedSongs(imported)
             } finally {
                 imported.close()
@@ -237,6 +252,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
             syncMetrolist(database, force = true)
 
             val summary = summary(HistoryFilter(0, Long.MAX_VALUE, SOURCE_SPOTIFY))
+            rememberHasSpotify(summary.plays > 0)
             _importState.value = ImportState.Done(summary.plays, summary.tracks, summary.totalMs / 3_600_000)
         } catch (e: Exception) {
             Timber.e(e, "Spotify history import failed")
@@ -342,8 +358,46 @@ class PlusHistoryStore private constructor(private val context: Context) {
             deleteDatabaseFiles(context.getDatabasePath(FILE))
             db = open()
         }
+        rememberHasSpotify(false)
         syncMetrolist(database, force = true)
         bump()
+    }
+
+    /** Copies the whole history (and the habit log) to a file the user picked. */
+    suspend fun export(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val copy = context.getDatabasePath("plus_historial_export.db")
+        deleteDatabaseFiles(copy)
+        try {
+            writeMutex.withLock {
+                // Closing merges the WAL into the main file, so the copy is complete.
+                db.close()
+                try {
+                    context.getDatabasePath(FILE).copyTo(copy, overwrite = true)
+                } finally {
+                    db = open()
+                }
+            }
+            val exported = SQLiteDatabase.openDatabase(copy.path, null, SQLiteDatabase.OPEN_READWRITE)
+            try {
+                PlusListenLog.copyInto(context, exported)
+            } finally {
+                exported.close()
+            }
+            context.contentResolver.openOutputStream(uri, "wt")!!.use { output ->
+                copy.inputStream().use { it.copyTo(output, 1 shl 16) }
+            }
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "History export failed")
+            false
+        } finally {
+            deleteDatabaseFiles(copy)
+        }
+    }
+
+    fun rememberHasSpotify(value: Boolean) {
+        val prefs = prefs(context)
+        if (prefs.getBoolean(HAS_SPOTIFY, false) != value) prefs.edit().putBoolean(HAS_SPOTIFY, value).apply()
     }
 
     private fun deleteDatabaseFiles(file: File) {
@@ -455,6 +509,9 @@ class PlusHistoryStore private constructor(private val context: Context) {
 
     // ---------------------------------------------------------------- Queries
 
+    /** The track to play for a group of versions of the same song: a matched one if there is any. */
+    private val REPRESENTATIVE = "COALESCE(MIN(CASE WHEN t.yt_id IS NOT NULL THEN t.id END), MIN(t.id))"
+
     private fun where(filter: HistoryFilter, extra: String? = null): String = buildString {
         append("p.ts_local >= ${filter.from} AND p.ts_local < ${filter.to}")
         filter.source?.let { append(" AND p.source = $it") }
@@ -518,7 +575,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
     ) { TopEntry(it.getString(0), it.getString(1), null, it.getLong(2), it.getLong(3), it.getStringOrNull(4), it.getStringOrNull(5), null) }
 
     fun topTracks(filter: HistoryFilter, limit: Int): List<TopEntry> = rows(
-        "SELECT t.track_key, MAX(t.name), MAX(a.name), SUM(p.ms), SUM(p.ms >= $PLAY_MS) plays, MAX(t.thumb), MAX(t.yt_id), MIN(t.id) " +
+        "SELECT t.track_key, MAX(t.name), MAX(a.name), SUM(p.ms), SUM(p.ms >= $PLAY_MS) plays, MAX(t.thumb), MAX(t.yt_id), $REPRESENTATIVE " +
             "FROM play p JOIN track t ON t.id = p.track_id JOIN artist a ON a.id = t.artist_id " +
             "WHERE ${where(filter)} GROUP BY t.track_key ORDER BY plays DESC, SUM(p.ms) DESC LIMIT $limit",
     ) {
@@ -548,20 +605,22 @@ class PlusHistoryStore private constructor(private val context: Context) {
     fun habits(filter: HistoryFilter, today: Long): Habits {
         // Skips and shuffle only exist in Spotify's export.
         val spotify = filter.copy(source = SOURCE_SPOTIFY)
-        val (skipRate, shuffleRate) = if (filter.source == SOURCE_METROLIST) {
-            null to null
+        val spotifyCounts = if (filter.source == SOURCE_METROLIST) {
+            longArrayOf(0, 0, 0, 0)
         } else {
             query(
-                "SELECT COUNT(*), SUM(p.skipped = 1 OR p.ms < $PLAY_MS), SUM(p.shuffle = 1), SUM(p.shuffle IS NOT NULL) " +
-                    "FROM play p WHERE ${where(spotify)}",
+                "SELECT COUNT(*), COALESCE(SUM(p.skipped = 1 OR p.ms < $PLAY_MS), 0), COALESCE(SUM(p.shuffle = 1), 0), " +
+                    "COALESCE(SUM(p.shuffle IS NOT NULL), 0) FROM play p WHERE ${where(spotify)}",
             ) {
                 it.moveToFirst()
-                val count = it.getLong(0)
-                val shuffleKnown = it.getLong(3)
-                (if (count > 0) it.getLong(1).toDouble() / count else null) to
-                    (if (shuffleKnown > 0) it.getLong(2).toDouble() / shuffleKnown else null)
+                longArrayOf(it.getLong(0), it.getLong(1), it.getLong(2), it.getLong(3))
             }
         }
+        val log = if (filter.source == SOURCE_SPOTIFY) null else runCatching { PlusListenLog.summary(context, filter.from, filter.to) }.getOrNull()
+        val count = spotifyCounts[0] + (log?.count ?: 0)
+        val shuffleKnown = spotifyCounts[3] + (log?.count ?: 0)
+        val skipRate = if (count > 0) (spotifyCounts[1] + (log?.skipped ?: 0)).toDouble() / count else null
+        val shuffleRate = if (shuffleKnown > 0) (spotifyCounts[2] + (log?.shuffled ?: 0)).toDouble() / shuffleKnown else null
 
         val days = rows("SELECT DISTINCT p.ts_local / $DAY_MS FROM play p WHERE ${where(filter, "p.ms >= $PLAY_MS")} ORDER BY 1") { it.getLong(0) }
         var longest = 0
@@ -587,7 +646,16 @@ class PlusHistoryStore private constructor(private val context: Context) {
             "SELECT COALESCE(p.platform, 'otro'), SUM(p.ms) total FROM play p WHERE ${where(filter)} GROUP BY 1 ORDER BY total DESC",
         ) { it.getString(0) to it.getLong(1) }
 
-        return Habits(skipRate, shuffleRate, longest, longestStart?.times(DAY_MS), current, platforms)
+        return Habits(
+            skipRate,
+            shuffleRate,
+            longest,
+            longestStart?.times(DAY_MS),
+            current,
+            platforms,
+            log?.outputs.orEmpty(),
+            runCatching { PlusListenLog.firstRecord(context) }.getOrNull(),
+        )
     }
 
     /** One page of the full history, newest first. Pass the last row to get the next page. */
@@ -601,10 +669,55 @@ class PlusHistoryStore private constructor(private val context: Context) {
         ) { HistoryRow(it.getLong(0), it.getLong(1), it.getLong(2), it.getInt(3), it.getLong(4), it.getString(5), it.getString(6), it.getStringOrNull(7)) }
     }
 
+    // ---------------------------------------------------------------- "Para ti"
+
+    private inline fun picks(sql: String): List<PickTrack> = rows(sql) {
+        PickTrack(it.getLong(0), it.getString(1), it.getString(2), it.getStringOrNull(3), it.getStringOrNull(4))
+    }
+
+    private fun pickSelect(score: String) =
+        "SELECT $REPRESENTATIVE, MAX(t.name), MAX(a.name), MAX(t.yt_id), MAX(t.thumb), $score score " +
+            "FROM play p JOIN track t ON t.id = p.track_id JOIN artist a ON a.id = t.artist_id "
+
+    /** Songs usually played around [hour] on weekdays or weekends since [since]. */
+    fun forHour(hour: Int, weekend: Boolean, since: Long, limit: Int): List<PickTrack> {
+        val hours = listOf((hour + 23) % 24, hour, (hour + 1) % 24).joinToString { "'%02d'".format(it) }
+        val days = if (weekend) "('0', '6')" else "('1', '2', '3', '4', '5')"
+        return picks(
+            pickSelect("COUNT(*)") +
+                "WHERE p.ms >= $PLAY_MS AND p.ts_local >= $since " +
+                "AND strftime('%H', p.ts_local / 1000, 'unixepoch') IN ($hours) " +
+                "AND strftime('%w', p.ts_local / 1000, 'unixepoch') IN $days " +
+                "GROUP BY t.track_key ORDER BY score DESC LIMIT $limit",
+        )
+    }
+
+    /** Favorites from before [oldBefore] that haven't been played since [notSince]. */
+    fun rediscover(oldBefore: Long, notSince: Long, limit: Int): List<PickTrack> = picks(
+        pickSelect("SUM(p.ts_local < $oldBefore)") +
+            "WHERE p.ms >= $PLAY_MS GROUP BY t.track_key " +
+            "HAVING score >= 10 AND MAX(p.ts_local) < $notSince ORDER BY score DESC LIMIT $limit",
+    )
+
+    fun topPicks(filter: HistoryFilter, limit: Int): List<PickTrack> = picks(
+        pickSelect("SUM(p.ms >= $PLAY_MS)") + "WHERE ${where(filter)} GROUP BY t.track_key ORDER BY score DESC LIMIT $limit",
+    )
+
+    /** The most played song of the most played artist in [filter], to start a radio from. */
+    fun radioSeed(filter: HistoryFilter): Pair<String, PickTrack>? {
+        val artist = topArtists(filter, 1).firstOrNull() ?: return null
+        val key = artist.key.replace("'", "''")
+        val track = picks(
+            pickSelect("SUM(p.ms >= $PLAY_MS)") +
+                "WHERE ${where(filter)} AND a.artist_key = '$key' GROUP BY t.track_key ORDER BY score DESC LIMIT 1",
+        ).firstOrNull() ?: return null
+        return artist.title to track
+    }
+
     // ---------------------------------------------------------------- YouTube matching
 
     /** Finds the YouTube song for a track, searching only the first time. */
-    suspend fun resolve(trackId: Long): ResolvedTrack? = withContext(Dispatchers.IO) {
+    suspend fun resolve(trackId: Long, database: MusicDatabase): ResolvedTrack? = withContext(Dispatchers.IO) {
         val (title, artist, album, ytId) = query(
             "SELECT t.name, a.name, al.name, t.yt_id FROM track t JOIN artist a ON a.id = t.artist_id " +
                 "LEFT JOIN album al ON al.id = t.album_id WHERE t.id = $trackId",
@@ -621,6 +734,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
                 arrayOf<Any?>(item.id, item.thumbnail, trackId),
             )
         }
+        runCatching { database.insert(item.toMediaMetadata()) }.onFailure { Timber.w(it, "Could not save ${item.id}") }
         ResolvedTrack(item.id, item)
     }
 
@@ -646,7 +760,7 @@ class PlusHistoryStore private constructor(private val context: Context) {
         for (track in tracks) {
             val trackId = track.trackId ?: continue
             if (track.thumb != null || !attemptedThumbs.add("t:${track.key}")) continue
-            if (runCatching { resolve(trackId) }.getOrNull()?.item != null) changed = true
+            if (runCatching { resolve(trackId, database) }.getOrNull()?.item != null) changed = true
         }
         changed
     }

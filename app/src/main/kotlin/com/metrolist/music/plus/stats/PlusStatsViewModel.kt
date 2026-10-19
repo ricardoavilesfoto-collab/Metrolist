@@ -106,7 +106,7 @@ constructor(
         _loading.value = true
         try {
             val result = withContext(Dispatchers.IO) {
-                _hasSpotify.value = store.hasSpotify()
+                _hasSpotify.value = store.hasSpotify().also(store::rememberHasSpotify)
                 val bounds = store.bounds(source)
                 _years.value = bounds?.let { (from, to) ->
                     (storedMillisToDate(to).year downTo storedMillisToDate(from).year).toList()
@@ -244,9 +244,11 @@ constructor(
 
     fun dismissImportResult() = store.clearImportState()
 
+    suspend fun export(uri: Uri): Boolean = store.export(uri)
+
     /** Finds the song on YouTube (only the first time) and returns what the player needs. */
     suspend fun resolveForPlayback(trackId: Long): Pair<String, MediaMetadata?>? = withContext(Dispatchers.IO) {
-        val resolved = runCatching { store.resolve(trackId) }.getOrNull() ?: return@withContext null
+        val resolved = runCatching { store.resolve(trackId, database) }.getOrNull() ?: return@withContext null
         val metadata = resolved.item?.toMediaMetadata()
             ?: runCatching { database.getSongByIdBlocking(resolved.ytId)?.toMediaMetadata() }.getOrNull()
         resolved.ytId to metadata

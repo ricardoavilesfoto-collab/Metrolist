@@ -1435,6 +1435,11 @@ fun HomeScreen(
                     }
                 }
 
+                // Metrolist Plus: "Para ti" row built from the full listening history
+                if (selectedChip == null) {
+                    item(key = "plus_for_you") { com.metrolist.music.plus.stats.PlusForYouRow() }
+                }
+
                 homeSections.forEach { section ->
                     when (section) {
                         HomeSection.SpeedDial -> {

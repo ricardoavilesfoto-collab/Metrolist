@@ -78,7 +78,7 @@ private fun Context.selectedSystemRouteName(): String? =
         null
     }
 
-private fun Context.currentAudioOutput(): AudioOutputInfo {
+internal fun Context.currentAudioOutput(): AudioOutputInfo {
     val outputs = runCatching {
         getSystemService(AudioManager::class.java)?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.toList()
     }.getOrNull().orEmpty()

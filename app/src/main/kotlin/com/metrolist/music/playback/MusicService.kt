@@ -4065,6 +4065,10 @@ class MusicService :
     ) {
         val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
         val historyDurationMs = dataStore[HistoryDuration]?.times(1000f) ?: 30000f
+        // Metrolist Plus: habit log (skips, shuffle, audio output) for Plus stats
+        if (!dataStore.get(PauseListenHistoryKey, false)) {
+            com.metrolist.music.plus.stats.PlusListenLog.record(this, mediaItem, playbackStats.totalPlayTimeMs, player.shuffleModeEnabled)
+        }
 
         if (playbackStats.totalPlayTimeMs >= historyDurationMs &&
             !dataStore.get(PauseListenHistoryKey, false)
