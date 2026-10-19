@@ -15,6 +15,39 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-19 — Estadísticas Plus con gráficas e historial de Spotify
+- Qué: pantalla nueva "Estadísticas Plus" (ruta `plus/stats`). Junta el historial extendido de Spotify (2014–2026, ~466 mil reproducciones) con el historial de Metrolist. Trae:
+  - Resumen: horas, días, reproducciones, canciones, artistas y promedio diario.
+  - Barras de horas por año → mes → día (se toca una barra dos veces para entrar).
+  - Mapa de calor día × hora.
+  - Tops de artistas, canciones y álbumes (50).
+  - Evolución: artista #1 por año, líneas del top 5 y canciones descubiertas por año.
+  - Hábitos: % saltadas, % aleatorio, rachas y plataformas.
+  - Historial completo día por día (`plus/stats/history`).
+  - Filtros por periodo (Todo / 30 días / año / mes) y por fuente (Todo / Spotify / Metrolist).
+  - El ícono de estadísticas de Inicio abre esta pantalla. La original sigue en ⋮ → "Estadísticas clásicas".
+- Por qué: Ricardo quiere ver toda su vida de escucha de Spotify en Metrolist, con gráficas.
+- Cómo funciona:
+  - En la PC, `herramientas/historial-spotify/preparar_historial.py` convierte los JSON en `historial_spotify.db` (SQLite, sin IP), que se importa desde el menú ⋮.
+  - La app lo guarda como base propia `databases/plus_historial.db`. Al importar:
+    - convierte las horas UTC a hora local con la convención de `db/Converters.kt` (hora local guardada como UTC), con el horario de verano histórico;
+    - calcula claves normalizadas (`PlusMatcher.normalize`) para juntar la misma canción o artista de ambas fuentes.
+  - El historial de Metrolist se copia a esa base (filas `source = 1`) cada vez que cambia: se compara COUNT, MAX(id) y SUM(playTime) de `event`.
+  - Las canciones de Spotify no se emparejan con YouTube al importar. Al tocarlas se buscan y el resultado queda guardado en `track.yt_id`. Las fotos del top 10 se buscan solas.
+- Archivos propios:
+  - `plus/stats/PlusHistoryStore.kt`, `PlusStatsViewModel.kt`, `PlusStatsScreen.kt`, `PlusCharts.kt` (gráficas con Canvas, sin librerías), `PlusHistoryListScreen.kt`
+  - `plus/transfer/Matcher.kt`: búsqueda y normalización sacadas de `TransferManager.kt`, que ahora las usa desde ahí.
+  - `res/values/plus_strings.xml` y `values-es/plus_strings.xml` (`plus_stats_*`)
+  - `herramientas/historial-spotify/`
+- Archivos del original modificados (marcados `// Metrolist Plus`):
+  - `MainActivity.kt`: el ícono de estadísticas navega a `PlusStatsRoute`.
+  - `ui/screens/NavigationBuilder.kt`: dos `composable` nuevos junto a `PlusTransferRoute`.
+- Base de datos: **no** toca el esquema de `MusicDatabase`. Solo lee `event`, `song`, `song_artist_map` y `artist` con SQL directo. `plus_historial.db` no entra en la copia de seguridad de Metrolist: hay que conservar `historial_spotify.db` para reimportar.
+- Notas para sincronizar:
+  - Si el original renombra columnas de `event`, `song`, `song_artist_map` o `artist`, ajustar el query del espejo en `PlusHistoryStore.syncMetrolist`.
+  - Si cambia `Converters.kt` (cómo guarda `LocalDateTime`), ajustar `fillLocalTime` y `toStoredMillis`.
+- Pendiente (fase 2): emparejar en segundo plano las ~8,400 canciones con 10+ reproducciones y meterlas como `Event` en el historial real de Metrolist. Hay que registrar sus IDs para que el espejo no las cuente doble.
+
 ## 2026-10-19 — Menos batería sin quitar animaciones
 - Qué: (1) "Descarga de audio" (*audio offload*) encendida por defecto: el chip de audio reproduce y el procesador duerme, como Spotify. Se sigue apagando sola con crossfade y se puede desactivar en Ajustes → Reproductor si en algún teléfono hay cortes. (2) Con el reproductor cerrado, la posición de la mini barra se actualiza cada 1 s en lugar de cada 100 ms (10 redibujados por segundo menos); con el reproductor abierto sigue a 100 ms. (3) El sondeo de Discord cada 5 s solo trabaja si hay sesión de Discord (el original lo trae activado por defecto aunque no se use).
 - Por qué: en el teléfono de Ricardo el 80 % del consumo era en primer plano (2 h) y 20 % en segundo plano (8 h). Ricardo pidió mantener las animaciones.

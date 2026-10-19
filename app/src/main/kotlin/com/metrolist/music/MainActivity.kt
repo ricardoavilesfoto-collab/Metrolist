@@ -1075,7 +1075,7 @@ class MainActivity : FragmentActivity() {
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { navController.navigate("stats") }) {
+                                            IconButton(onClick = { navController.navigate(com.metrolist.music.plus.stats.PlusStatsRoute) }) { // Metrolist Plus
                                                 Icon(
                                                     painter = painterResource(R.drawable.stats),
                                                     contentDescription = stringResource(R.string.stats),
