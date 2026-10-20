@@ -15,12 +15,12 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
-## 2026-10-20 — Aleatorio con recomendaciones en las playlists
-- Qué: botón verde Spotify (aleatorio con destellos) junto al de aleatorio en playlists locales y automáticas (Me gusta, Descargadas…).
+## 2026-10-20 — Aleatorio Plus (aleatorio con recomendaciones) en las playlists
+- Qué: botón "Aleatorio Plus", verde Spotify (aleatorio con destellos), junto al de aleatorio en playlists locales y automáticas (Me gusta, Descargadas…).
   - Reproduce la playlist en aleatorio y alterna una y una: canción de la playlist, canción recomendada.
   - La recomendada sale de la radio de YouTube Music (`RDAMVM<id>`) de una canción de la misma playlist, así que va con el género o vibe.
   - Se arma por bloques de 8 canciones de la playlist (+8 recomendadas), con a lo más 3 consultas a YouTube por bloque. El siguiente bloque se pide cuando faltan pocas canciones.
-  - Las recomendadas dicen "• Recomendada" en la cola (campo `suggestedBy` de `MediaMetadata`, el mismo que usa Escuchar juntos).
+  - Las recomendadas dicen "Recomendada" (en verde, antes del artista) en la cola (campo `suggestedBy` de `MediaMetadata`, el mismo que usa Escuchar juntos).
     En Reproduciendo ahora: diseño Plus, línea verde "✦ Recomendada" arriba del título (`plus/player/SpotifyControls.kt`); diseño original, junto al artista en `ui/player/Player.kt`, una línea marcada `// Metrolist Plus`).
   - No repite recomendadas ni mete versiones de canciones que ya están en la playlist (compara título + primer artista).
   - Sin internet suena la playlist en aleatorio normal.
@@ -28,6 +28,7 @@ Formato de cada entrada (la más reciente arriba):
 - Archivos propios: `plus/queue/MixShuffleQueue.kt` (`PlusMixShuffleQueue`, `PlusMixShuffleButton`); `res/drawable/plus_shuffle_mix.xml`; textos `plus_mix_shuffle` y `plus_mix_recommended`.
 - Archivos del original modificados (una línea + imports, marcados `// Metrolist Plus`):
   - `ui/screens/playlist/LocalPlaylistScreen.kt` y `AutoPlaylistScreen.kt`: `PlusMixShuffleButton(...)` antes del botón Play.
+  - `ui/component/Items.kt` (`MediaMetadataListItem`): `suggestedBy` va al inicio del subtítulo y en verde, en vez de al final.
 - Notas para sincronizar: depende de "Cargar más automáticamente" (activo por defecto). Al reiniciar la app la cola guardada sigue como lista normal, sin nuevas recomendadas.
 
 ## 2026-10-19 — Fase 2: enseñarle el historial de Spotify a Metrolist y YouTube Music

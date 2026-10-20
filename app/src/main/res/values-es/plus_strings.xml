@@ -154,6 +154,6 @@
     <string name="plus_teach_done">Listo: tu historial ya está en Metrolist.</string>
     <string name="plus_teach_paused">En pausa. Toca Continuar para seguir donde se quedó.</string>
     <string name="plus_teach_no_network">Se detuvo: YouTube no responde (¿sin internet?). Toca Continuar para reintentar.</string>
-    <string name="plus_mix_shuffle">Aleatorio con recomendaciones</string>
+    <string name="plus_mix_shuffle">Aleatorio Plus</string>
     <string name="plus_mix_recommended">Recomendada</string>
 </resources>

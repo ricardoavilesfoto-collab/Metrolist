@@ -128,6 +128,7 @@ import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.plus.player.SpotifyGreen // Metrolist Plus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -1086,13 +1087,14 @@ fun MediaMetadataListItem(
                         },
                         makeTimeString(mediaMetadata.duration * 1000L)
                     )
-                    append(base)
+                    // Metrolist Plus: label first (in green) so long artist names never hide it
                     if (mediaMetadata.suggestedBy != null && base.isNotEmpty()) {
-                        append(" • ")
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = SpotifyGreen)) {
                             append(mediaMetadata.suggestedBy)
                         }
+                        append(" • ")
                     }
+                    append(base)
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.secondary),
                 maxLines = 1,
