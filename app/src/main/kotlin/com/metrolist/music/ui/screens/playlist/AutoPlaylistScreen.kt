@@ -105,6 +105,8 @@ import com.metrolist.music.extensions.fileNameAndSize
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.plus.queue.PlusMixShuffleButton // Metrolist Plus
+import com.metrolist.music.models.toMediaMetadata // Metrolist Plus
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.DraggableScrollbar
 import com.metrolist.music.ui.component.EmptyPlaceholder
@@ -941,6 +943,8 @@ private fun AutoPlaylistHeader(
                     )
                 }
             }
+
+            PlusMixShuffleButton(name) { songs.map { it.toMediaMetadata() } } // Metrolist Plus
 
             // Play Button - Larger primary circular button
             Surface(

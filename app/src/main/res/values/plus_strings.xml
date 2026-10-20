@@ -154,4 +154,5 @@
     <string name="plus_teach_done">Done: your history is in Metrolist.</string>
     <string name="plus_teach_paused">Paused. Tap Continue to resume where it stopped.</string>
     <string name="plus_teach_no_network">Stopped: YouTube is not responding (no internet?). Tap Continue to try again.</string>
+    <string name="plus_mix_shuffle">Shuffle with recommendations</string>
 </resources>

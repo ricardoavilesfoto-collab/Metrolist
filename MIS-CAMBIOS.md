@@ -15,6 +15,19 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-20 — Aleatorio con recomendaciones en las playlists
+- Qué: botón nuevo (aleatorio con destellos) junto al de aleatorio en playlists locales y automáticas (Me gusta, Descargadas…).
+  - Reproduce la playlist en aleatorio y, cada dos canciones, mete una que no está en la playlist.
+  - La recomendada sale de la radio de YouTube Music (`RDAMVM<id>`) de una canción de la misma playlist, así que va con el género o vibe.
+  - Se arma por bloques de 10 canciones de la playlist (+5 recomendadas), con a lo más 3 consultas a YouTube por bloque. El siguiente bloque se pide cuando faltan pocas canciones.
+  - No repite recomendadas ni mete versiones de canciones que ya están en la playlist (compara título + primer artista).
+  - Sin internet suena la playlist en aleatorio normal.
+- Por qué: Ricardo quería descubrir música parecida a sus playlists sin dejar de oírlas.
+- Archivos propios: `plus/queue/MixShuffleQueue.kt` (`PlusMixShuffleQueue`, `PlusMixShuffleButton`); `res/drawable/plus_shuffle_mix.xml`; texto `plus_mix_shuffle`.
+- Archivos del original modificados (una línea + imports, marcados `// Metrolist Plus`):
+  - `ui/screens/playlist/LocalPlaylistScreen.kt` y `AutoPlaylistScreen.kt`: `PlusMixShuffleButton(...)` antes del botón Play.
+- Notas para sincronizar: depende de "Cargar más automáticamente" (activo por defecto). Al reiniciar la app la cola guardada sigue como lista normal, sin nuevas recomendadas.
+
 ## 2026-10-19 — Fase 2: enseñarle el historial de Spotify a Metrolist y YouTube Music
 - Qué: tarjeta "Enseñarle tu historial a YouTube Music" en Estadísticas Plus (`plus/stats/PlusTeacher.kt`).
   - Busca en YouTube las ~7,700 canciones con 10+ reproducciones en Spotify, de la más escuchada a la menos. Las versiones de una misma canción cuentan como una.
