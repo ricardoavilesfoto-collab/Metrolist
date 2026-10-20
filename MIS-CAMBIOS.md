@@ -21,6 +21,7 @@ Formato de cada entrada (la más reciente arriba):
   - La recomendada sale de la radio de YouTube Music (`RDAMVM<id>`) de una canción de la misma playlist, así que va con el género o vibe.
   - Se arma por bloques de 10 canciones de la playlist (+5 recomendadas), con a lo más 3 consultas a YouTube por bloque. El siguiente bloque se pide cuando faltan pocas canciones.
   - Las recomendadas dicen "• Recomendada" en la cola (campo `suggestedBy` de `MediaMetadata`, el mismo que usa Escuchar juntos).
+    También se ve junto al artista en Reproduciendo ahora (diseño Plus en `plus/player/SpotifyControls.kt` y diseño original en `ui/player/Player.kt`, una línea marcada `// Metrolist Plus`).
   - No repite recomendadas ni mete versiones de canciones que ya están en la playlist (compara título + primer artista).
   - Sin internet suena la playlist en aleatorio normal.
 - Por qué: Ricardo quería descubrir música parecida a sus playlists sin dejar de oírlas.

@@ -1072,6 +1072,7 @@ fun BottomSheetPlayer(
                                         pop()
                                         if (index != mediaMetadata.artists.lastIndex) append(", ")
                                     }
+                                    mediaMetadata.suggestedBy?.let { append(" • $it") } // Metrolist Plus: "Recommended" tag
                                 }
 
                             Box(

@@ -208,6 +208,15 @@ fun ColumnScope.PlusSpotifyControls(
                         ) { artist.id?.let(onOpenArtist) },
                     )
                 }
+                mediaMetadata.suggestedBy?.let { label ->
+                    Text(
+                        text = " • $label",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor,
+                        maxLines = 1,
+                    )
+                }
             }
         }
 
