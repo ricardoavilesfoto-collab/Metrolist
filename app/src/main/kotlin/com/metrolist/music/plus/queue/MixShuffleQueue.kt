@@ -4,7 +4,8 @@
  *
  * La cola se arma por bloques de [CHUNK] canciones de la playlist; cada bloque hace a lo más [MAX_RADIOS]
  * consultas a YouTube y el reproductor pide el siguiente bloque cuando faltan pocas canciones. Sin internet
- * simplemente suena la playlist en aleatorio.
+ * simplemente suena la playlist en aleatorio. Las recomendadas llevan la etiqueta "Recomendada" en la cola
+ * (usa `suggestedBy`, el mismo campo con el que Escuchar juntos muestra quién sugirió una canción).
  */
 
 package com.metrolist.music.plus.queue
@@ -30,6 +31,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.Queue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,6 +39,7 @@ import kotlinx.coroutines.withContext
 class PlusMixShuffleQueue(
     private val title: String?,
     songs: List<MediaMetadata>,
+    private val recommendedLabel: String,
 ) : Queue {
     private val remaining = ArrayDeque(songs.distinctBy { it.id }.shuffled())
     private val knownIds = songs.mapTo(HashSet()) { it.id }
@@ -59,7 +62,7 @@ class PlusMixShuffleQueue(
             buildList {
                 own.forEachIndexed { index, song ->
                     add(song.toMediaItem())
-                    if (index % 2 == 1) pool.removeFirstOrNull()?.let { add(it.toMediaItem()) }
+                    if (index % 2 == 1) pool.removeFirstOrNull()?.let { add(it.toMediaMetadata().copy(suggestedBy = recommendedLabel).toMediaItem()) }
                 }
             }
         }
@@ -96,10 +99,11 @@ fun PlusMixShuffleButton(
     songs: () -> List<MediaMetadata>,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val recommendedLabel = stringResource(R.string.plus_mix_recommended)
     Surface(
         onClick = {
             val list = songs()
-            if (list.isNotEmpty()) playerConnection.playQueue(PlusMixShuffleQueue(title, list))
+            if (list.isNotEmpty()) playerConnection.playQueue(PlusMixShuffleQueue(title, list, recommendedLabel))
         },
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant,

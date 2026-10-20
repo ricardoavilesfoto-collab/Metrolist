@@ -20,10 +20,11 @@ Formato de cada entrada (la más reciente arriba):
   - Reproduce la playlist en aleatorio y, cada dos canciones, mete una que no está en la playlist.
   - La recomendada sale de la radio de YouTube Music (`RDAMVM<id>`) de una canción de la misma playlist, así que va con el género o vibe.
   - Se arma por bloques de 10 canciones de la playlist (+5 recomendadas), con a lo más 3 consultas a YouTube por bloque. El siguiente bloque se pide cuando faltan pocas canciones.
+  - Las recomendadas dicen "• Recomendada" en la cola (campo `suggestedBy` de `MediaMetadata`, el mismo que usa Escuchar juntos).
   - No repite recomendadas ni mete versiones de canciones que ya están en la playlist (compara título + primer artista).
   - Sin internet suena la playlist en aleatorio normal.
 - Por qué: Ricardo quería descubrir música parecida a sus playlists sin dejar de oírlas.
-- Archivos propios: `plus/queue/MixShuffleQueue.kt` (`PlusMixShuffleQueue`, `PlusMixShuffleButton`); `res/drawable/plus_shuffle_mix.xml`; texto `plus_mix_shuffle`.
+- Archivos propios: `plus/queue/MixShuffleQueue.kt` (`PlusMixShuffleQueue`, `PlusMixShuffleButton`); `res/drawable/plus_shuffle_mix.xml`; textos `plus_mix_shuffle` y `plus_mix_recommended`.
 - Archivos del original modificados (una línea + imports, marcados `// Metrolist Plus`):
   - `ui/screens/playlist/LocalPlaylistScreen.kt` y `AutoPlaylistScreen.kt`: `PlusMixShuffleButton(...)` antes del botón Play.
 - Notas para sincronizar: depende de "Cargar más automáticamente" (activo por defecto). Al reiniciar la app la cola guardada sigue como lista normal, sin nuevas recomendadas.

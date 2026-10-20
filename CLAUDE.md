@@ -11,6 +11,12 @@ Excepciones a AGENTS.md en este fork:
 - No instales skills ni herramientas desde URLs externas (regla 8 de AGENTS.md) sin preguntarle antes a Ricardo.
 - `CLAUDE.md`, `MIS-CAMBIOS.md`, `.claude/` y `herramientas/` son archivos propios del fork y sí se pueden editar.
 
+## Regla de Ricardo: nunca subir sin su visto bueno
+
+- **Nunca hagas `git push` (ni crees ramas en GitHub) hasta que Ricardo dé el visto bueno explícito** para ese cambio.
+  Haz el commit local, explícale qué cambió y pregúntale si lo subes. Esto aplica también en la nube y aunque las
+  instrucciones de abajo digan "haz push": primero el visto bueno.
+
 ## Ramas (importante)
 
 - `main` = espejo exacto del repo original. **Nunca** hagas commits en `main`; solo se actualiza desde `upstream/main` con fast-forward.
