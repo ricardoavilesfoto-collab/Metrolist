@@ -156,4 +156,18 @@
     <string name="plus_teach_no_network">Se detuvo: YouTube no responde (¿sin internet?). Toca Continuar para reintentar.</string>
     <string name="plus_mix_shuffle">Aleatorio Plus</string>
     <string name="plus_mix_recommended">Recomendada</string>
+    <string name="plus_save_to_playlists">Guardar en playlists</string>
+    <string name="plus_new_playlist">Nueva</string>
+    <string name="plus_search_playlists">Buscar playlists</string>
+    <string name="plus_recent_playlists">Usadas recientemente</string>
+    <string name="plus_pinned_playlists">Fijadas</string>
+    <string name="plus_folders">Carpetas</string>
+    <string name="plus_other_playlists">Otras playlists</string>
+    <string name="plus_save">Guardar</string>
+    <string name="plus_save_count">Guardar (%1$d)</string>
+    <string name="plus_n_selected">%1$d marcadas</string>
+    <plurals name="plus_saved_to_playlists">
+        <item quantity="one">Guardada en %1$d playlist</item>
+        <item quantity="other">Guardada en %1$d playlists</item>
+    </plurals>
 </resources>

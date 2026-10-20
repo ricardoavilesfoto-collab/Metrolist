@@ -15,6 +15,19 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-20 — "Guardar en playlists": varias a la vez, buscador, carpetas y recientes
+- Qué: la ventana de "Agregar a playlist" ahora es "Guardar en playlists".
+  - Casillas para marcar varias playlists y botón "Guardar (N)" que guarda la canción (o canciones) en todas de un jalón.
+  - Buscador por nombre y los mismos chips de orden del original (tocar el chip activo invierte el orden).
+  - Sin búsqueda, la lista va así: Usadas recientemente (las últimas 5), Fijadas, Carpetas (se abren al tocarlas y dicen cuántas marcaste dentro) y Otras playlists.
+  - Las playlists que ya tienen la canción salen marcadas y bloqueadas. Con varias canciones, las repetidas se omiten sin preguntar.
+  - Solo muestra playlists editables. Botón "Nueva" para crear una playlist ahí mismo.
+- Por qué: Ricardo tiene muchas playlists y quería encontrarlas rápido y guardar una canción en varias en un solo movimiento.
+- Archivos propios: `plus/library/SaveToPlaylists.kt` (`PlusSaveToPlaylistsDialog`; recientes en DataStore `plusRecentAddToPlaylist`); textos `plus_save_*`, `plus_search_playlists`, `plus_recent_playlists`, `plus_pinned_playlists`, `plus_folders`, `plus_other_playlists`, `plus_n_selected`, plural `plus_saved_to_playlists`.
+- Archivos del original modificados (marcados `// Metrolist Plus`):
+  - `ui/menu/AddToPlaylistDialog.kt`: 2 imports y un `if (plusSaveToPlaylistsEnabled())` después de `val playlists` que muestra el diálogo nuevo y sale. El código original queda intacto debajo.
+- Notas para sincronizar: si el original cambia los parámetros de `AddToPlaylistDialog`, pasarlos también a `PlusSaveToPlaylistsDialog`. `AddToPlaylistDialogOnline` (importar CSV / selección de YouTube) no se tocó.
+
 ## 2026-10-20 — Aleatorio Plus (aleatorio con recomendaciones) en las playlists
 - Qué: botón "Aleatorio Plus", verde Spotify (aleatorio con destellos), junto al de aleatorio en playlists locales y automáticas (Me gusta, Descargadas…).
   - Reproduce la playlist en aleatorio y alterna una y una: canción de la playlist, canción recomendada.

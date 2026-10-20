@@ -77,6 +77,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.FilterChipDefaults
 import com.metrolist.music.LocalSyncUtils
+import com.metrolist.music.plus.library.PlusSaveToPlaylistsDialog // Metrolist Plus
+import com.metrolist.music.plus.library.plusSaveToPlaylistsEnabled // Metrolist Plus
 
 @Composable
 fun AddToPlaylistDialog(
@@ -104,6 +106,11 @@ fun AddToPlaylistDialog(
         false
     )
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+    // Metrolist Plus: multi-select with search, folders and recently used playlists
+    if (plusSaveToPlaylistsEnabled()) {
+        if (isVisible) PlusSaveToPlaylistsDialog(playlists, allowSyncing, initialTextFieldValue, onGetSong, onGetSongIds, onDismiss)
+        return
+    }
     val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)

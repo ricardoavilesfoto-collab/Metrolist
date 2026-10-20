@@ -156,4 +156,18 @@
     <string name="plus_teach_no_network">Stopped: YouTube is not responding (no internet?). Tap Continue to try again.</string>
     <string name="plus_mix_shuffle">Shuffle Plus</string>
     <string name="plus_mix_recommended">Recommended</string>
+    <string name="plus_save_to_playlists">Save to playlists</string>
+    <string name="plus_new_playlist">New</string>
+    <string name="plus_search_playlists">Search playlists</string>
+    <string name="plus_recent_playlists">Recently used</string>
+    <string name="plus_pinned_playlists">Pinned</string>
+    <string name="plus_folders">Folders</string>
+    <string name="plus_other_playlists">Other playlists</string>
+    <string name="plus_save">Save</string>
+    <string name="plus_save_count">Save (%1$d)</string>
+    <string name="plus_n_selected">%1$d selected</string>
+    <plurals name="plus_saved_to_playlists">
+        <item quantity="one">Saved to %1$d playlist</item>
+        <item quantity="other">Saved to %1$d playlists</item>
+    </plurals>
 </resources>
