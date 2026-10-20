@@ -169,6 +169,17 @@ fun ColumnScope.PlusSpotifyControls(
             .padding(horizontal = PlayerHorizontalPadding),
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            // Own line so long titles or artist names never hide it
+            mediaMetadata.suggestedBy?.let { label ->
+                Text(
+                    text = "✦ $label",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = SpotifyGreen,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             AnimatedContent(
                 targetState = mediaMetadata.title,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -206,15 +217,6 @@ fun ColumnScope.PlusSpotifyControls(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) { artist.id?.let(onOpenArtist) },
-                    )
-                }
-                mediaMetadata.suggestedBy?.let { label ->
-                    Text(
-                        text = " • $label",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor,
-                        maxLines = 1,
                     )
                 }
             }
