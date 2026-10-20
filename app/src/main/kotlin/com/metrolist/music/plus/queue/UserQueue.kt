@@ -29,6 +29,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import com.metrolist.music.R
+import com.metrolist.music.playback.MusicService
 
 private const val USER_QUEUE_EXTRA = "plus_user_queue"
 
@@ -41,6 +42,17 @@ fun MediaItem.markedAsUserQueued(): MediaItem {
     return buildUpon()
         .setMediaMetadata(mediaMetadata.buildUpon().setExtras(extras).build())
         .build()
+}
+
+/**
+ * The player adds the first "similar content" song by itself when the last song starts. It is part of the playlist,
+ * not something the user queued: marking it would show it under "Next in queue" and carry it into the next playlist.
+ */
+fun MusicService.plusAppendFirstAutomix() {
+    val item = automixItems.value.firstOrNull() ?: return
+    automixItems.value = automixItems.value.drop(1)
+    player.addMediaItem(item)
+    player.prepare()
 }
 
 /** Indices (in play order) of the user-queued songs right after the current one. */

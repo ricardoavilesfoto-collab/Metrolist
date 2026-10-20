@@ -35,6 +35,11 @@ import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.plus.player.SpotifyGreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class PlusMixShuffleQueue(
@@ -48,7 +53,9 @@ class PlusMixShuffleQueue(
     private val knownKeys = songs.mapTo(HashSet()) { key(it.title, it.artists.firstOrNull()?.name) }
     private val pool = ArrayDeque<SongItem>()
 
-    override val preloadItem: MediaMetadata? = remaining.firstOrNull()
+    // No preload: with a single song loaded the player adds an automix song by itself while the first block loads.
+    override val preloadItem: MediaMetadata? = null
+    private val mutex = Mutex()
 
     override suspend fun getInitialStatus() = Queue.Status(title, nextChunk(), 0)
 
@@ -57,22 +64,29 @@ class PlusMixShuffleQueue(
     override suspend fun nextPage() = nextChunk()
 
     private suspend fun nextChunk(): List<MediaItem> =
-        withContext(Dispatchers.IO) {
-            val own = List(minOf(CHUNK, remaining.size)) { remaining.removeFirst() }
-            refillPool(seeds = own, needed = own.size)
-            buildList {
-                own.forEach { song ->
-                    add(song.toMediaItem())
-                    pool.removeFirstOrNull()?.let { add(it.toMediaMetadata().copy(suggestedBy = recommendedLabel).toMediaItem()) }
-                }
+        withContext(Dispatchers.IO) { mutex.withLock { buildChunk() } }
+
+    private suspend fun buildChunk(): List<MediaItem> {
+        val own = List(minOf(CHUNK, remaining.size)) { remaining.removeFirst() }
+        if (pool.size < own.size) refillPool(seeds = own)
+        return buildList {
+            own.forEach { song ->
+                add(song.toMediaItem())
+                pool.removeFirstOrNull()?.let { add(it.toMediaMetadata().copy(suggestedBy = recommendedLabel).toMediaItem()) }
             }
         }
+    }
 
-    private suspend fun refillPool(seeds: List<MediaMetadata>, needed: Int) {
-        for (seed in seeds.shuffled().take(MAX_RADIOS)) {
-            if (pool.size >= needed) return
-            val radio = YouTube.next(WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}"))
-                .getOrNull()?.items ?: continue
+    // Radios are fetched in parallel so the first block (and the start of playback) waits for one round trip.
+    private suspend fun refillPool(seeds: List<MediaMetadata>) {
+        val radios = coroutineScope {
+            seeds.shuffled().take(MAX_RADIOS).map { seed ->
+                async {
+                    YouTube.next(WatchEndpoint(videoId = seed.id, playlistId = "RDAMVM${seed.id}")).getOrNull()?.items.orEmpty()
+                }
+            }.awaitAll()
+        }
+        radios.forEach { radio ->
             radio
                 .filter { it.id !in knownIds && key(it.title, it.artists.firstOrNull()?.name) !in knownKeys }
                 .shuffled()

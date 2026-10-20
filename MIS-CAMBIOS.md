@@ -15,6 +15,15 @@ Formato de cada entrada (la más reciente arriba):
 
 ---
 
+## 2026-10-20 — Arreglo: canción "random" en "Siguiente en la cola"
+- Qué: la canción que aparecía sola en "Siguiente en la cola" al usar Aleatorio Plus venía de "Contenido similar" (automix).
+  - Cuando la última canción de la cola empieza, `Player.kt` agrega sola la primera de "Contenido similar". Lo hacía con `addToQueue`, que en este fork marca la canción como agregada por el usuario. Por eso salía en "Siguiente en la cola" y se arrastraba a la siguiente playlist.
+  - Aleatorio Plus lo provocaba siempre: cargaba primero una sola canción (`preloadItem`) mientras pedía las radios a YouTube, así que esa canción era "la última".
+- Arreglo:
+  - `Player.kt` ahora usa `plusAppendFirstAutomix()` (en `plus/queue/UserQueue.kt`): agrega la canción similar al final, sin marca de cola del usuario. Agregarla a mano desde la lista de "Contenido similar" sigue marcándola.
+  - `PlusMixShuffleQueue` ya no usa `preloadItem`, pide las radios en paralelo (un solo viaje de espera) y usa un `Mutex` para que dos bloques no se armen al mismo tiempo.
+- Archivos: `plus/queue/UserQueue.kt`, `plus/queue/MixShuffleQueue.kt`; del original `ui/player/Player.kt` (una línea + import, marcados `// Metrolist Plus`).
+
 ## 2026-10-20 — "Guardar en playlists": varias a la vez, buscador, carpetas y recientes
 - Qué: la ventana de "Agregar a playlist" ahora es "Guardar en playlists".
   - Casillas para marcar varias playlists y botón "Guardar (N)" que guarda la canción (o canciones) en todas de un jalón.

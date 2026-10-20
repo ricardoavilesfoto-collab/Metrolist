@@ -204,6 +204,7 @@ import com.metrolist.music.ui.component.Icon as MIcon
 import com.metrolist.music.constants.SleepTimerDefaultKey
 import com.metrolist.music.constants.SleepTimerFadeOutKey
 import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
+import com.metrolist.music.plus.queue.plusAppendFirstAutomix // Metrolist Plus
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -409,7 +410,7 @@ fun BottomSheetPlayer(
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
 
     if (!canSkipNext && automix.isNotEmpty()) {
-        playerConnection.service.addToQueueAutomix(automix[0], 0)
+        playerConnection.service.plusAppendFirstAutomix() // Metrolist Plus: not as a song the user queued
     }
 
     val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
